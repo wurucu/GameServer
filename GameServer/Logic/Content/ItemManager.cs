@@ -41,11 +41,11 @@ namespace LeagueSandbox.GameServer.Logic.Content
         public static ItemManager LoadItems(Game game)
         {
             var result = new ItemManager(game);
-            var itemContentCollection = ItemContentCollection.LoadItemsFrom("Content/Data/LeagueSandbox-Default/Items");
+            var itemContentCollection = ItemContentCollection.LoadFrom("Content/Data/LeagueSandbox-Default/Items");
             foreach(var entry in itemContentCollection)
             {
                 var itemType = ItemType.Load(game, result, entry.Value);
-                result._itemTypes.Add(entry.Key, itemType);
+                result._itemTypes.Add(Convert.ToInt32(entry.Key), itemType);
             }
             return result;
         }
