@@ -8,7 +8,7 @@ namespace GameServerTests
     public class TestStats
     {
         [TestMethod]
-        public void TestTotalAttackSpeed()
+        public void TestStatsTotalAttackSpeed()
         {
             var stats = new Stats();
 
@@ -30,7 +30,7 @@ namespace GameServerTests
         }
 
         [TestMethod]
-        public void TestLevelUp()
+        public void TestStatsLevelUp()
         {
             var stats = new Stats();
 

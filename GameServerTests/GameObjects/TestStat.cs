@@ -8,7 +8,7 @@ namespace GameServerTests
     public class TestStat
     {
         [TestMethod]
-        public void TestTotal()
+        public void TestStatTotal()
         {
             //Create new Stat object with everything set to 0
             var stat = new Stat();

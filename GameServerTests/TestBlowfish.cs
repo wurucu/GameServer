@@ -9,7 +9,7 @@ namespace GameServerTests
     public class TestBlowfish
     {
         [TestMethod]
-        public void TestBlowfish1()
+        public void TestBlowfishEncryptDecrypt()
         {
             try
             {

@@ -9,9 +9,9 @@ namespace GameServerTests
     {
         [TestMethod]
         [DeploymentItem("Content", "Content")]
-        public void TestAddAndGetItem()
+        public void TestInventoryManagerAddGet()
         {
-            var game = new TestHelpers.DummyGame();
+            var game = new Helpers.DummyGame();
             game.LoadItems();
 
             var manager = InventoryManager.CreateInventory(game, null);
@@ -48,9 +48,9 @@ namespace GameServerTests
 
         [TestMethod]
         [DeploymentItem("Content", "Content")]
-        public void TestItemStacking()
+        public void TestInventoryManagerItemStacking()
         {
-            var game = new TestHelpers.DummyGame();
+            var game = new Helpers.DummyGame();
             game.LoadItems();
 
             var manager = InventoryManager.CreateInventory(game, null);
@@ -89,9 +89,9 @@ namespace GameServerTests
 
         [TestMethod]
         [DeploymentItem("Content", "Content")]
-        public void TestSetExtraItem()
+        public void TestInventoryManagerSetExtraItem()
         {
-            var game = new TestHelpers.DummyGame();
+            var game = new Helpers.DummyGame();
             game.LoadItems();
 
             var manager = InventoryManager.CreateInventory(game, null);
@@ -115,9 +115,9 @@ namespace GameServerTests
 
         [TestMethod]
         [DeploymentItem("Content", "Content")]
-        public void TestGetItemSlot()
+        public void TestInventoryManagerGetItemSlot()
         {
-            var game = new TestHelpers.DummyGame();
+            var game = new Helpers.DummyGame();
             game.LoadItems();
 
             var manager = InventoryManager.CreateInventory(game, null);
@@ -147,9 +147,9 @@ namespace GameServerTests
 
         [TestMethod]
         [DeploymentItem("Content", "Content")]
-        public void TestRemoveItem()
+        public void TestInventoryManagerRemoveItem()
         {
-            var game = new TestHelpers.DummyGame();
+            var game = new Helpers.DummyGame();
             game.LoadItems();
 
             var manager = InventoryManager.CreateInventory(game, null);
@@ -173,9 +173,9 @@ namespace GameServerTests
 
         [TestMethod]
         [DeploymentItem("Content", "Content")]
-        public void TestSwapItems()
+        public void TestInventoryManagerSwapItems()
         {
-            var game = new TestHelpers.DummyGame();
+            var game = new Helpers.DummyGame();
             game.LoadItems();
 
             var manager = InventoryManager.CreateInventory(game, null);
@@ -224,9 +224,9 @@ namespace GameServerTests
 
         [TestMethod]
         [DeploymentItem("Content", "Content")]
-        public void TestGetAvailableItems()
+        public void TestInventoryManagerGetAvailableItems()
         {
-            var game = new TestHelpers.DummyGame();
+            var game = new Helpers.DummyGame();
             game.LoadItems();
 
             var manager = InventoryManager.CreateInventory(game, null);

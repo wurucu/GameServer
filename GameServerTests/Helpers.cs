@@ -8,7 +8,7 @@ using LeagueSandbox.GameServer.Logic.Content;
 
 namespace GameServerTests
 {
-    public class TestHelpers
+    public class Helpers
     {
         public class DummyGame : Game
         {
