@@ -99,6 +99,7 @@ namespace LeagueSandbox.GameServer.Logic.GameObjects
         public Stat AttackSpeedMultiplier { get; }
         public Stat CooldownReduction { get; }
         public Stat CriticalChance { get; }
+        public Stat ExperiencePerSecond { get; }
         public Stat GoldPerSecond { get; }
         public Stat HealthPoints { get; }
         public Stat HealthRegeneration { get; }
@@ -178,6 +179,7 @@ namespace LeagueSandbox.GameServer.Logic.GameObjects
             AttackSpeedMultiplier = new Stat(1.0f, 0, 0, 0, 0);
             CooldownReduction = new Stat();
             CriticalChance = new Stat();
+            ExperiencePerSecond = new Stat();
             GoldPerSecond = new Stat();
             HealthPoints = new Stat();
             HealthRegeneration = new Stat();
@@ -562,6 +564,9 @@ namespace LeagueSandbox.GameServer.Logic.GameObjects
                 float newGold = Gold + GoldPerSecond.Total * (diff * 0.001f);
                 Gold = newGold;
             }
+
+            float newExperience = Experience + ExperiencePerSecond.Total*(diff*0.001f);
+            Experience = newExperience;
         }
 
         public void LevelUp()

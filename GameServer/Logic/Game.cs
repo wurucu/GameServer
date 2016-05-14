@@ -65,7 +65,7 @@ namespace LeagueSandbox.GameServer.Core.Logic
 
             Blowfish = new BlowFish(key);
             PacketHandlerManager = new PacketHandlerManager(this);
-            _map = new SummonersRift(this);
+            _map = new TwistedTreeline(this);
             PacketNotifier = new PacketNotifier(this);
             ApiFunctionManager.SetGame(this);
 
@@ -88,6 +88,7 @@ namespace LeagueSandbox.GameServer.Core.Logic
                 c.setPosition(pos.Item1, pos.Item2);
                 c.setTeam((p.Value.Team.ToLower() == "blue") ? TeamId.TEAM_BLUE : TeamId.TEAM_PURPLE);
                 c.LevelUp();
+                c.GetStats().Gold = GetMap().StartGold;
 
                 player.SetChampion(c);
                 var pair = new Pair<uint, ClientInfo>();

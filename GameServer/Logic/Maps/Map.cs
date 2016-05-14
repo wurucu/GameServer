@@ -42,6 +42,9 @@ namespace LeagueSandbox.GameServer.Logic.Maps
         protected Dictionary<TeamId, Fountain> _fountains;
         private readonly List<TeamId> _teamsIterator;
 
+        public float GoldPerSecond { get; set; }
+        public float ExperiencePerSecond { get; set; }
+        public float StartGold { get; set; }
 
         public Map(Game game, long firstSpawnTime, long spawnInterval, long firstGoldTime, bool hasFountainHeal, int id)
         {
@@ -71,7 +74,6 @@ namespace LeagueSandbox.GameServer.Logic.Maps
 
             foreach (var team in _teamsIterator)
                 _visionUnits.Add(team, new Dictionary<uint, Unit>());
-
         }
 
         public virtual void Update(long diff)
@@ -210,11 +212,6 @@ namespace LeagueSandbox.GameServer.Logic.Maps
         public CollisionHandler GetCollisionHandler()
         {
             return _collisionHandler;
-        }
-
-        public virtual float GetGoldPerSecond()
-        {
-            return 0;
         }
 
         public virtual bool Spawn()

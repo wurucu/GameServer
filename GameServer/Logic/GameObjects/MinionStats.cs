@@ -15,14 +15,14 @@ namespace LeagueSandbox.GameServer.Logic.GameObjects
         Minion_FM2_Ad = 0x00001000,
         Minion_FM2_Atks = 0x00004000,
         Minion_FM4_MoveSpeed = 0x0000004
-    };
+    }
 
     public class MinionStats : Stats
     {
-        protected float range;
+        public override float Experience { get; set; }
+
         public MinionStats()
         {
-            range = 0;
         }
 
         public override byte getSize(MasterMask blockId, FieldMask stat)

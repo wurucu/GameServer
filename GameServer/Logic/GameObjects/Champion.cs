@@ -42,7 +42,8 @@ namespace LeagueSandbox.GameServer.Logic.GameObjects
             Shop = Shop.CreateShop(this);
 
             stats.Gold = 475.0f;
-            stats.GoldPerSecond.BaseValue = game.GetMap().GetGoldPerSecond();
+            stats.GoldPerSecond.BaseValue = game.GetMap().GoldPerSecond;
+            stats.ExperiencePerSecond.BaseValue = game.GetMap().ExperiencePerSecond;
             stats.SetGeneratingGold(false);
 
             Inibin inibin;

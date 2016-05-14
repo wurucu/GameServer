@@ -58,6 +58,8 @@ namespace LeagueSandbox.GameServer.Logic
                     MapSpawns.SetSpawns(team, playerSpawns, i);
                 }
             }
+
+
         }
     }
 
@@ -81,6 +83,12 @@ namespace LeagueSandbox.GameServer.Logic
                 throw new Exception("Invalid team");
             }
         }
+    }
+
+    public class MapConfig
+    {
+        public float GoldPerSecond { get; set; }
+        public float ExperiencePerSecond { get; set; }
     }
 
     public class PlayerSpawns
