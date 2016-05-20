@@ -93,7 +93,7 @@ namespace LeagueSandbox.GameServer.Logic.Maps
             { TeamId.TEAM_PURPLE, new float[] { 12500, 12800, 110 } }
         };
 
-        public TwistedTreeline(Game game) : base(game, /*90*/5 * 1000, 30 * 1000, 90 * 1000, true, 1)
+        public TwistedTreeline(Game game) : base(game)
         {
             if (!RAFManager.getInstance().readAIMesh("LEVELS/Map10/AIPath.aimesh", out mesh))
             {

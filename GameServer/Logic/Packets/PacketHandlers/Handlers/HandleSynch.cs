@@ -16,7 +16,7 @@ namespace LeagueSandbox.GameServer.Core.Logic.PacketHandlers.Packets
             var version = new SynchVersion(data);
             //Logging->writeLine("Client version: %s", version->version);
 
-            var mapId = game.Config.GameConfig.Map;
+            var mapId = game.Config.MapConfig.MapID;
             Logger.LogCoreInfo("Current map: " + mapId);
 
             bool versionMatch = true;

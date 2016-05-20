@@ -15,6 +15,7 @@ namespace LeagueSandbox.GameServer.Logic
         public Dictionary<string, PlayerConfig> Players { get; private set; }
         public GameConfig GameConfig { get; private set; }
         public MapSpawns MapSpawns { get; private set; }
+        public MapConfig MapConfig { get; private set; }
         public ContentManager ContentManager { get; private set; }
         public const string VERSION = "Version 4.20.0.315 [PUBLIC]";
 
@@ -44,7 +45,24 @@ namespace LeagueSandbox.GameServer.Logic
             // Read spawns info
             ContentManager = ContentManager.LoadGameMode(GameConfig.GameMode);
             var mapPath = ContentManager.GetMapDataPath(GameConfig.Map);
+            MapConfig = new MapConfig();
             var mapData = JObject.Parse(File.ReadAllText(mapPath));
+
+            MapConfig.MapID = (int) mapData.Property("map").Value;
+            MapConfig.GoldPerSecond = (float) mapData.Property("goldPerSecond").Value;
+            MapConfig.ExperiencePerSecond = (float) mapData.Property("experiencePerSecond").Value;
+            MapConfig.SpawnInterval = (float) mapData.Property("spawnInterval").Value;
+            MapConfig.FirstSpawnTime = (float) mapData.Property("firstSpawnTime").Value;
+            MapConfig.GoldTimer = (float) mapData.Property("goldTimer").Value;
+
+            var experience = (JArray)mapData.Property("experience").Value;
+
+            MapConfig.Experience = new List<int>();
+            for (var i = 0; i < experience.Count; i++)
+            {
+                MapConfig.Experience.Add((int) experience[i]);
+            }
+
             var spawns = mapData.SelectToken("spawns");
 
             MapSpawns = new MapSpawns();
@@ -89,6 +107,13 @@ namespace LeagueSandbox.GameServer.Logic
     {
         public float GoldPerSecond { get; set; }
         public float ExperiencePerSecond { get; set; }
+        public int MapID { get; set; }
+        public float StartingGold { get; set; }
+        public float SpawnInterval { get; set; }
+        public float FirstSpawnTime { get; set; }
+        public float GoldTimer { get; set; }
+        public bool HasFountainHeal { get; set; }
+        public List<int> Experience { get; set; } 
     }
 
     public class PlayerSpawns

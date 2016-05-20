@@ -65,7 +65,8 @@ namespace LeagueSandbox.GameServer.Core.Logic
 
             Blowfish = new BlowFish(key);
             PacketHandlerManager = new PacketHandlerManager(this);
-            _map = new TwistedTreeline(this);
+            //_map = new TwistedTreeline(this);
+            _map = new Map(this);
             PacketNotifier = new PacketNotifier(this);
             ApiFunctionManager.SetGame(this);
 

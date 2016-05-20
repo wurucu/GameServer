@@ -9,6 +9,7 @@ using System.Linq;
 using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
+using LeagueSandbox.GameServer.Core.Logic.RAF;
 
 namespace LeagueSandbox.GameServer.Logic.Maps
 {
@@ -46,34 +47,45 @@ namespace LeagueSandbox.GameServer.Logic.Maps
         public float ExperiencePerSecond { get; set; }
         public float StartGold { get; set; }
 
-        public Map(Game game, long firstSpawnTime, long spawnInterval, long firstGoldTime, bool hasFountainHeal, int id)
+        public Map(Game game)
         {
             _objects = new Dictionary<uint, GameObject>();
             _champions = new Dictionary<uint, Champion>();
             _visionUnits = new Dictionary<TeamId, Dictionary<uint, Unit>>();
             _expToLevelUp = new List<int>();
             _waveNumber = 0;
-            _firstSpawnTime = firstSpawnTime;
-            _firstGoldTime = firstGoldTime;
-            _spawnInterval = spawnInterval;
+            _firstSpawnTime = (long) (game.Config.MapConfig.FirstSpawnTime * 1000);
+            _firstGoldTime = (long) (game.Config.MapConfig.GoldTimer * 1000);
+            _spawnInterval = (long) (game.Config.MapConfig.SpawnInterval * 1000);
             _gameTime = 0;
-            _nextSpawnTime = firstSpawnTime;
+            _nextSpawnTime = (long) (game.Config.MapConfig.FirstSpawnTime * 1000);
             _nextSyncTime = 10 * 1000;
             _announcerEvents = new List<GameObjects.Announce>();
             _game = game;
             _firstBlood = true;
             _killReduction = true;
-            _hasFountainHeal = hasFountainHeal;
+            _hasFountainHeal = true;
             _collisionHandler = new CollisionHandler(this);
             _fountains = new Dictionary<TeamId, Fountain>();
             _fountains.Add(TeamId.TEAM_BLUE, new Fountain(TeamId.TEAM_BLUE, 11, 250, 1000));
             _fountains.Add(TeamId.TEAM_PURPLE, new Fountain(TeamId.TEAM_PURPLE, 13950, 14200, 1000));
-            _id = id;
+            _id = game.Config.MapConfig.MapID;
+            _expToLevelUp = game.Config.MapConfig.Experience;
+            StartGold = game.Config.MapConfig.StartingGold;
+            GoldPerSecond = game.Config.MapConfig.GoldPerSecond;
+            ExperiencePerSecond = game.Config.MapConfig.ExperiencePerSecond;
 
             _teamsIterator = Enum.GetValues(typeof(TeamId)).Cast<TeamId>().ToList();
 
             foreach (var team in _teamsIterator)
                 _visionUnits.Add(team, new Dictionary<uint, Unit>());
+
+            if (!RAFManager.getInstance().readAIMesh("LEVELS/Map"+_id+"/AIPath.aimesh", out mesh))
+            {
+                Logger.LogCoreError("Failed to load AI mesh data.");
+                return;
+            }
+            _collisionHandler.init(3); // Needs to be initialised after AIMesh
         }
 
         public virtual void Update(long diff)

@@ -157,7 +157,6 @@ namespace LeagueSandbox.GameServer.Logic.GameObjects
         public Tuple<float, float> getRespawnPosition()
         {
             var config = _game.Config;
-            var mapId = config.GameConfig.Map;
             var playerIndex = "player" + playerId;
             var playerTeam = "";
             var teamSize = getTeamSize();
