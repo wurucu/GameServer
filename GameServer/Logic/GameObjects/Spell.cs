@@ -241,6 +241,19 @@ namespace LeagueSandbox.GameServer.Logic.GameObjects
             return true;
         }
 
+        public virtual void Casting(long diff)
+        {
+            try
+            {
+                _script.lua["diff"] = diff;
+                _script.lua.DoString("casting(diff)");
+            }
+            catch (LuaException e)
+            {
+                Logger.LogCoreError("LUA ERROR : " + e.Message);
+            }
+        }
+
         /**
          * Called when the spell is finished casting and we're supposed to do things
          * such as projectile spawning, etc.
@@ -283,6 +296,10 @@ namespace LeagueSandbox.GameServer.Logic.GameObjects
                     if (currentCastTime <= 0)
                     {
                         finishCasting();
+                    }
+                    else
+                    {
+                        Casting(diff);
                     }
                     break;
                 case SpellState.STATE_COOLDOWN:
@@ -464,7 +481,7 @@ namespace LeagueSandbox.GameServer.Logic.GameObjects
             script.lua.RegisterFunction("getSpellToY", this, typeof(Spell).GetMethod("getY"));
             script.lua.RegisterFunction("getRange", this, typeof(Spell).GetMethod("getRange"));
             script.lua.RegisterFunction("getProjectileSpeed", this, typeof(Spell).GetMethod("getProjectileSpeed"));
-            script.lua.RegisterFunction("getCoefficient", this, typeof (Spell).GetMethod("getCoefficient"));
+            script.lua.RegisterFunction("getCoefficient", this, typeof(Spell).GetMethod("getCoefficient"));
             script.lua.RegisterFunction("addProjectile", this, typeof(Spell).GetMethod("addProjectile", new Type[] { typeof(string), typeof(float), typeof(float) }));
             script.lua.RegisterFunction("addProjectileTarget", this, typeof(Spell).GetMethod("addProjectileTarget", new Type[] { typeof(string), typeof(Target) }));
             script.lua.RegisterFunction("getEffectValue", this, typeof(Spell).GetMethod("getEffectValue", new Type[] { typeof(int) }));
