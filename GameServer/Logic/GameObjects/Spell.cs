@@ -15,6 +15,8 @@ using NLua.Exceptions;
 using LeagueSandbox.GameServer.Logic.API;
 using LeagueSandbox.GameServer.Logic.Scripting;
 using LeagueSandbox.GameServer.Logic.Scripting.Lua;
+using LeagueSandbox.GameServer.PluginSystem.Faces;
+using LeagueSandbox.GameServer.PluginSystem;
 
 namespace LeagueSandbox.GameServer.Logic.GameObjects
 {
@@ -110,20 +112,14 @@ namespace LeagueSandbox.GameServer.Logic.GameObjects
 
         public static bool NO_COOLDOWN = true;
         public static bool NO_MANACOST = true;
-
-        private IScriptEngine _scriptEngine;
-
+          
         public Spell(Champion owner, string spellName, byte slot)
         {
             this.owner = owner;
             this.spellName = spellName;
             this.slot = slot;
 
-            Inibin inibin;
-
-            _scriptEngine = new LuaScriptEngine();
-
-            LoadLua(_scriptEngine);
+            Inibin inibin; 
 
             if (slot > 3)
             {
@@ -250,16 +246,17 @@ namespace LeagueSandbox.GameServer.Logic.GameObjects
         public virtual void finishCasting()
         {
 
-            Logger.LogCoreInfo("Spell from slot " + getSlot());
-            try
+            if (getOwner().getPlugin().Loaded)
             {
-                _scriptEngine.Execute("onFinishCasting()");
+                try
+                {
+                    getOwner().getPlugin().getContent<IUnit>().onFinishCasting(this, x, y, getTarget(), futureProjNetId, this.spellNetId);
+                }
+                catch (Exception e)
+                {
+                    PluginManager.Exception(e, getOwner().getPlugin());
+                }
             }
-            catch (LuaException e)
-            {
-                Logger.LogCoreError("LUA ERROR : " + e.Message);
-            }
-
             state = SpellState.STATE_COOLDOWN;
 
             currentCooldown = getCooldown();
@@ -311,58 +308,19 @@ namespace LeagueSandbox.GameServer.Logic.GameObjects
          * In here we apply the effects : damage, buffs, debuffs...
          */
 
-        public void applyEffects(Unit u, Projectile p = null)
-        {
-            _scriptEngine.SetGlobalVariable("u", u);
-            _scriptEngine.Execute(@"
-                function getTarget()
-                    return u
-                end");
-
-            _scriptEngine.SetGlobalVariable("p", p);
-            _scriptEngine.Execute(@"
-                function destroyProjectile()
-                    p:setToRemove()
-                end");
-
-            _scriptEngine.SetGlobalVariable("TYPE_PHYSICAL", DamageType.DAMAGE_TYPE_PHYSICAL);
-            _scriptEngine.SetGlobalVariable("TYPE_MAGICAL", DamageType.DAMAGE_TYPE_MAGICAL);
-            _scriptEngine.SetGlobalVariable("TYPE_TRUE", DamageType.DAMAGE_TYPE_TRUE);
-            _scriptEngine.SetGlobalVariable("SOURCE_SPELL", DamageSource.DAMAGE_SOURCE_SPELL);
-            _scriptEngine.SetGlobalVariable("SOURCE_SUMMONER_SPELL", DamageSource.DAMAGE_SOURCE_SUMMONER_SPELL);
-            _scriptEngine.SetGlobalVariable("SOURCE_ATTACK", DamageSource.DAMAGE_SOURCE_ATTACK);
-            _scriptEngine.SetGlobalVariable("SOURCE_PASSIVE", DamageSource.DAMAGE_SOURCE_PASSIVE);
-            _scriptEngine.SetGlobalVariable("countObjectsHit", p.getObjectsHit().Count);
-
-
-            _scriptEngine.Execute(@"
-                function dealPhysicalDamage(amount)
-                    getOwner():dealDamageTo(u, amount, TYPE_PHYSICAL, SOURCE_SPELL, false)
-                end");
-
-            _scriptEngine.Execute(@"
-                function dealMagicalDamage(amount)
-                    getOwner():dealDamageTo(u, amount, TYPE_MAGICAL, SOURCE_SPELL, false)
-                end");
-
-            _scriptEngine.Execute(@"
-                function dealTrueDamage(amount)
-                    getOwner():dealDamageTo(u, amount, TYPE_TRUE, SOURCE_SPELL, false)
-                end");
-
-            _scriptEngine.Execute(@"
-                function getNumberObjectsHit()
-                    return countObjectsHit
-                end");
-
-            try
+        public void applyEffects(Unit u, Projectile p)
+        { 
+            if (getOwner().getPlugin().Loaded)
             {
-                _scriptEngine.Execute("applyEffects()");
-            }
-            catch (LuaException e)
-            {
-                Logger.LogCoreError("LUA ERROR : " + e.Message);
-            }
+                try
+                {  
+                    getOwner().getPlugin().getContent<IUnit>().onHit(this, getSlot(), p, u);
+                }
+                catch (Exception e)
+                {
+                    PluginManager.Exception(e, getOwner().getPlugin());
+                }
+            } 
         }
 
         public Champion getOwner()
@@ -488,109 +446,7 @@ namespace LeagueSandbox.GameServer.Logic.GameObjects
 
             game.GetMap().AddObject(p);
         }
-
-        public void LoadLua(IScriptEngine scriptEngine)
-        {
-            var config = owner.GetGame().Config;
-            string scriptloc;
-
-            if (getSlot() > 3)
-            {
-                scriptloc = config.ContentManager.GetSpellScriptPath("Global", spellName);
-            }
-            else
-            {
-                scriptloc = config.ContentManager.GetSpellScriptPath(owner.getType(), getStringForSlot());
-            }
-            scriptEngine.Execute("package.path = 'LuaLib/?.lua;' .. package.path");
-            scriptEngine.Execute(@"
-                function onFinishCasting()
-                end");
-            scriptEngine.Execute(@"
-                function applyEffects()
-                end");
-            ApiFunctionManager.AddBaseFunctionToLuaScript(scriptEngine);
-            scriptEngine.RegisterFunction("getOwner", this, typeof(Spell).GetMethod("getOwner"));
-            scriptEngine.RegisterFunction("getOwnerX", owner, typeof(Champion).GetMethod("getX"));
-            scriptEngine.RegisterFunction("getOwnerY", owner, typeof(Champion).GetMethod("getY"));
-            scriptEngine.RegisterFunction("getSpellLevel", this, typeof(Spell).GetMethod("getLevel"));
-            scriptEngine.RegisterFunction("getOwnerLevel", owner.GetStats(), typeof(Stats).GetMethod("GetLevel"));
-            scriptEngine.RegisterFunction("getChampionModel", owner, typeof(Champion).GetMethod("getModel"));
-            scriptEngine.RegisterFunction("getCastTarget", this, typeof(Spell).GetMethod("getTarget"));
-            scriptEngine.RegisterFunction("getSpellToX", this, typeof(Spell).GetMethod("getX"));
-            scriptEngine.RegisterFunction("getSpellToY", this, typeof(Spell).GetMethod("getY"));
-            scriptEngine.RegisterFunction("getRange", this, typeof(Spell).GetMethod("getRange"));
-            scriptEngine.RegisterFunction("getProjectileSpeed", this, typeof(Spell).GetMethod("getProjectileSpeed"));
-            scriptEngine.RegisterFunction("getCoefficient", this, typeof (Spell).GetMethod("getCoefficient"));
-            scriptEngine.RegisterFunction("addProjectile", this, typeof(Spell).GetMethod("addProjectile", new Type[] { typeof(string), typeof(float), typeof(float) }));
-            scriptEngine.RegisterFunction("addProjectileTarget", this, typeof(Spell).GetMethod("addProjectileTarget", new Type[] { typeof(string), typeof(Target) }));
-            scriptEngine.RegisterFunction("getEffectValue", this, typeof(Spell).GetMethod("getEffectValue", new Type[] { typeof(int) }));
-            scriptEngine.RegisterFunction("spellAnimation", this, typeof(Spell).GetMethod("spellAnimation", new Type[] { typeof(string), typeof(Unit) }));
-            scriptEngine.RegisterFunction("setAnimation", this, typeof(Spell).GetMethod("setAnimation", new Type[] { typeof(string), typeof(string), typeof(Unit) }));
-            scriptEngine.RegisterFunction("resetAnimations", this, typeof(Spell).GetMethod("resetAnimations", new Type[] { typeof(Unit) }));
-            scriptEngine.RegisterFunction("getOtherSpellLevel", this, typeof(Spell).GetMethod("getOtherSpellLevel", new Type[] { typeof(int) } ));
-            scriptEngine.RegisterFunction("addPlaceable", this, typeof(Spell).GetMethod("AddPlaceable", new Type[] { typeof(float), typeof(float), typeof(string), typeof(string) }));
-
-            /*script.lua.set_function("addMovementSpeedBuff", [this](Unit* u, float amount, float duration) { // expose teleport to lua
-                Buff* b = new Buff(duration);
-                b->setMovementSpeedPercentModifier(amount);
-                u->addBuff(b);
-                u->GetStats().addMovementSpeedPercentageModifier(b->getMovementSpeedPercentModifier());
-               return;
-            });*/
-
-            /*
-            script.lua.set_function("addProjectileCustom", [this](const std::string&name, float projSpeed, float toX, float toY) {
-                Projectile* p = new Projectile(owner->getMap(), GetNewNetID(), owner->getX(), owner->getY(), lineWidth, owner, new Target(toX, toY), this, projectileSpeed, RAFFile::getHash(name), projectileFlags ? projectileFlags : flags);
-                owner->getMap()->addObject(p);
-                owner->getMap()->getGame()->notifyProjectileSpawn(p);
-
-                return;
-            });
-
-            script.lua.set_function("addProjectileTargetCustom", [this](const std::string&name, float projSpeed, Target *t) {
-                Projectile* p = new Projectile(owner->getMap(), GetNewNetID(), owner->getX(), owner->getY(), lineWidth, owner, t, this, projectileSpeed, RAFFile::getHash(name), projectileFlags ? projectileFlags : flags);
-                owner->getMap()->addObject(p);
-                owner->getMap()->getGame()->notifyProjectileSpawn(p);
-
-                return;
-            });
-
-
-             //For spells that don't require SpawnProjectile, but for which we still need to track the projectile server-side
-
-            script.lua.set_function("addServerProjectile", [this](float toX, float toY) {
-                Projectile* p = new Projectile(owner->getMap(), futureProjNetId, owner->getX(), owner->getY(), lineWidth, owner, new Target(toX, toY), this, projectileSpeed, 0, projectileFlags ? projectileFlags : flags);
-                owner->getMap()->addObject(p);
-
-                return;
-            });
-
-            script.lua.set_function("spellAnimation", [this](const std::string&animation, Unit* u) {
-                owner->getMap()->getGame()->notifySpellAnimation(u, animation);
-                return;
-            });
-
-            // TODO: Set multiple animations
-            script.lua.set_function("setAnimation", [this](const std::string&animation1, const std::string&animation2, Unit* u) {
-                std::vector < std::pair < std::string, std::string>> animationPairs;
-                animationPairs.push_back(std::make_pair(animation1, animation2));
-
-                owner->getMap()->getGame()->notifySetAnimation(u, animationPairs);
-                return;
-            });
-
-            script.lua.set_function("resetAnimations", [this](Unit * u) {
-                std::vector < std::pair < std::string, std::string>> animationPairs;
-                owner->getMap()->getGame()->notifySetAnimation(u, animationPairs);
-                return;
-            });*/
-
-            scriptEngine.Load(scriptloc); //todo: abstract class that loads a lua file for any lua
-        }
-
-        //public void reloadLua();
-
+          
         public void setSlot(byte _slot)
         {
             slot = _slot;

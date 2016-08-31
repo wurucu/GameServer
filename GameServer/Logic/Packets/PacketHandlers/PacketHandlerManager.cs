@@ -36,6 +36,7 @@ namespace LeagueSandbox.GameServer.Core.Logic
             registerHandler(new HandleSpawn(), PacketCmdC2S.PKT_C2S_CharLoaded, Channel.CHL_C2S);
             registerHandler(new HandleMap(), PacketCmdC2S.PKT_C2S_ClientReady, Channel.CHL_LOADING_SCREEN);
             registerHandler(new HandleSynch(), PacketCmdC2S.PKT_C2S_SynchVersion, Channel.CHL_C2S);
+            registerHandler(new HandleSynch(), PacketCmdC2S.PKT_C2S_SynchVersion2, Channel.CHL_C2S);
             registerHandler(new HandleCastSpell(), PacketCmdC2S.PKT_C2S_CastSpell, Channel.CHL_C2S);
             //registerHandler(new HandleGameNumber(),      PacketCmd.PKT_C2S_GameNumberReq, Channel.CHL_C2S);
             registerHandler(new HandleQueryStatus(), PacketCmdC2S.PKT_C2S_QueryStatusReq, Channel.CHL_C2S);
@@ -131,6 +132,9 @@ namespace LeagueSandbox.GameServer.Core.Logic
             else
                 temp = source;
 
+            PacketCmdS2C hd = (PacketCmdS2C)Convert.ToInt32(source[0]);
+            Logger.LogCoreInfo("SendPacket:" + hd.ToString() + ", CH: " + channelNo.ToString() + ", Len: " + source.Length);
+
             return peer.Send((byte)channelNo, temp);
         }
 
@@ -147,6 +151,9 @@ namespace LeagueSandbox.GameServer.Core.Logic
             var packet = new Packet();
             packet.Create(temp);
             _game.GetServer().Broadcast((byte)channelNo, ref packet);
+
+            PacketCmdS2C hd = (PacketCmdS2C)Convert.ToInt32(data[0]);
+            Logger.LogCoreInfo("broadcastPacket:" + hd.ToString() + ", CH: " + channelNo.ToString() + ", Len: " + data.Length);
 
             return true;
         }
@@ -201,22 +208,22 @@ namespace LeagueSandbox.GameServer.Core.Logic
                 case PacketCmdC2S.PKT_C2S_ViewReq:
                     break;
                 default:
-                    Console.WriteLine("Requested " + header.cmd.ToString());
+                    Logger.LogFullColor($"Requested {header.cmd.ToString()} , Length : {data.Length} bytes.", "", ConsoleColor.Green); 
                     break;
             }
 
             if (handler != null)
             {
                 if (!handler.HandlePacket(peer, data, _game))
-                {
-                    Console.WriteLine("Handle failed for " + header.cmd.ToString());
+                { 
+                    Logger.LogFullColor($"Handle failed for {header.cmd.ToString()}", "", ConsoleColor.Red);
                     return false;
                 }
                 return true;
             }
             else
-            {
-                Logger.LogCoreWarning("Unhandled OpCode " + header.cmd);
+            { 
+                Logger.LogFullColor($"Unhandled OpCode {header.cmd.ToString()}", "", ConsoleColor.Yellow);
                 printPacket(data, "Error: ");
             }
             return false;

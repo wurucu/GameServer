@@ -2901,10 +2901,14 @@ namespace LeagueSandbox.GameServer.Logic.Packets
         const short MAP_WIDTH = (13982 / 2);
         const short MAP_HEIGHT = (14446 / 2);
 
-        public SpawnParticle(Champion owner, GameObjects.Target t, string particle, uint netId) : base(PacketCmdS2C.PKT_S2C_SpawnParticle, owner.getNetId())
+        public SpawnParticle(Unit owner, GameObjects.Target t, string particle, uint netId) : base(PacketCmdS2C.PKT_S2C_SpawnParticle, owner.getNetId())
         {
             buffer.Write((byte)1); // number of particles
-            buffer.Write((uint)owner.getChampionHash());
+            Champion ch = owner as Champion;
+            if (ch != null)
+                buffer.Write((uint)ch.getChampionHash());
+            else
+                buffer.Write((uint)owner.GetHashCode());
             buffer.Write(RAFManager.getInstance().getHash(particle));
             buffer.Write((int)0x00000020); // flags ?
             buffer.Write((int)0); // unk

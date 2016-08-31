@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using LeagueSandbox.GameServer.Core.Logic;
+using LeagueSandbox.GameServer.PluginSystem.Faces;
 
 namespace LeagueSandbox.GameServer.Logic.GameObjects
 {

@@ -11,6 +11,8 @@ using System.Text;
 using System.Threading.Tasks;
 using LeagueSandbox.GameServer.Logic.Content;
 using NLua.Exceptions;
+using LeagueSandbox.GameServer.PluginSystem;
+using LeagueSandbox.GameServer.PluginSystem.Faces;
 
 namespace LeagueSandbox.GameServer.Logic.GameObjects
 {
@@ -27,13 +29,9 @@ namespace LeagueSandbox.GameServer.Logic.GameObjects
         protected float championGoldFromMinions = 0;
         protected long championHitFlagTimer = 0;
         public uint playerId;
-        public uint playerHitId;
-
-        public Spell getSpell(int index)
-        {
-            return spells[index];
-        }
-        public Champion(Game game, string type, uint id, uint playerId) : base(game, id, type, new Stats(), 30, 0, 0, 1200)
+        public uint playerHitId; 
+         
+        public Champion(Game game, string type, uint NetID, uint playerId) : base(game, NetID, type, new Stats(), 30, 0, 0, 1200)
         {
             this.type = type;
             this.playerId = playerId;
@@ -86,6 +84,12 @@ namespace LeagueSandbox.GameServer.Logic.GameObjects
             setMelee(inibin.getBoolValue("DATA", "IsMelee"));
             setCollisionRadius(inibin.getIntValue("DATA", "PathfindingCollisionRadius"));
 
+            //Load plugin
+            _plugin = PluginManager.LoadChampion(game, this);
+            _plugin.Type = EPluginType.Champion;
+            _plugin.ModelName = getType();
+            PluginManager.ReloadPlugin += () => { Logger.LogFullColor($"Plugin reloaded <{this.getType()}>", "LOG", ConsoleColor.Green); _plugin = PluginManager.LoadChampion(game, this); };
+
             Inibin autoAttack;
             if (!RAFManager.getInstance().readInibin("DATA/Characters/" + type + "/Spells/" + type + "BasicAttack.inibin", out autoAttack))
             {
@@ -98,28 +102,59 @@ namespace LeagueSandbox.GameServer.Logic.GameObjects
 
             autoAttackDelay = autoAttack.getFloatValue("SpellData", "castFrame") / 30.0f;
             autoAttackProjectileSpeed = autoAttack.getFloatValue("SpellData", "MissileSpeed");
-
-            LoadLua();
+             
         }
-
-        public override void LoadLua()
-        {
-            base.LoadLua();
-            var scriptloc = _game.Config.ContentManager.GetSpellScriptPath(getType(), "Passive");
-            _scriptEngine.SetGlobalVariable("me", this);
-            _scriptEngine.Execute(@"
-                function getOwner()
-                    return me
-                end");
-            _scriptEngine.Execute(@"
-                function onSpellCast(slot, target)
-                end");
-            _scriptEngine.Load(scriptloc);
-        }
-
+  
+        #region Gets
         public string getType()
         {
             return type;
+        }
+
+        public short getSkillPoints()
+        {
+            return skillPoints;
+        }
+
+        public float getChampionGoldFromMinions()
+        {
+            return championGoldFromMinions;
+        }
+
+        public Spell getSpell(int index)
+        {
+            return spells[index];
+        }
+
+        public InventoryManager getInventory()
+        {
+            return Inventory;
+        }
+
+        public int getChampionHash()
+        {
+            var szSkin = "";
+
+            if (skin < 10)
+                szSkin = "0" + skin;
+            else
+                szSkin = skin.ToString();
+
+            int hash = 0;
+            var gobj = "[Character]";
+            for (var i = 0; i < gobj.Length; i++)
+            {
+                hash = Char.ToLower(gobj[i]) + (0x1003F * hash);
+            }
+            for (var i = 0; i < type.Length; i++)
+            {
+                hash = Char.ToLower(type[i]) + (0x1003F * hash);
+            }
+            for (var i = 0; i < szSkin.Length; i++)
+            {
+                hash = Char.ToLower(szSkin[i]) + (0x1003F * hash);
+            }
+            return hash;
         }
 
         public int getTeamSize()
@@ -191,55 +226,35 @@ namespace LeagueSandbox.GameServer.Logic.GameObjects
             return new Tuple<float, float>(x, y);
         }
 
-        public Spell castSpell(byte slot, float x, float y, Unit target, uint futureProjNetId, uint spellNetId)
+        public long getRespawnTimer()
         {
-            try
-            {
-                _scriptEngine.SetGlobalVariable("slot", slot);
-                _scriptEngine.SetGlobalVariable("target", target);
-                _scriptEngine.Execute("onSpellCast(slot, target)");
-            }
-            catch (LuaScriptException e)
-            {
-                Logger.LogCoreError("LUA ERROR : " + e.Message);
-            }
-            Spell s = null;
-            foreach (Spell t in spells)
-            {
-                if (t.getSlot() == slot)
-                {
-                    s = t;
-                }
-            }
-
-            if (s == null)
-            {
-                return null;
-            }
-
-            s.setSlot(slot);//temporary hack until we redo spells to be almost fully lua-based
-
-            if ((s.getCost() * (1 - stats.getSpellCostReduction())) > stats.CurrentMana || s.getState() != SpellState.STATE_READY)
-                return null;
-
-            s.cast(x, y, target, futureProjNetId, spellNetId);
-            stats.CurrentMana = stats.CurrentMana - (s.getCost() * (1 - stats.getSpellCostReduction()));
-            return s;
+            return respawnTimer;
         }
-        public Spell levelUpSpell(short slot)
+        #endregion
+        
+        #region Sets
+        public void setChampionGoldFromMinions(float gold)
         {
-            if (slot >= spells.Count)
-                return null;
-
-            if (skillPoints == 0)
-                return null;
-
-            spells[slot].levelUp();
-            --skillPoints;
-
-            return spells[slot];
+            championGoldFromMinions = gold;
         }
 
+        public void setChampionHitFlagTimer(long time)
+        {
+            championHitFlagTimer = time;
+        }
+
+        public void setSkillPoints(int _skillPoints)
+        {
+            skillPoints = (short)_skillPoints;
+        }
+
+        public void setSkin(int skin)
+        {
+            this.skin = skin;
+        }
+        #endregion
+
+        #region Overrides
         public override void update(long diff)
         {
             base.update(diff);
@@ -312,72 +327,9 @@ namespace LeagueSandbox.GameServer.Logic.GameObjects
             }
         }
 
-        public void setSkillPoints(int _skillPoints)
-        {
-            skillPoints = (short)_skillPoints;
-        }
-
-        public void setSkin(int skin)
-        {
-            this.skin = skin;
-        }
-        public int getChampionHash()
-        {
-            var szSkin = "";
-
-            if (skin < 10)
-                szSkin = "0" + skin;
-            else
-                szSkin = skin.ToString();
-
-            int hash = 0;
-            var gobj = "[Character]";
-            for (var i = 0; i < gobj.Length; i++)
-            {
-                hash = Char.ToLower(gobj[i]) + (0x1003F * hash);
-            }
-            for (var i = 0; i < type.Length; i++)
-            {
-                hash = Char.ToLower(type[i]) + (0x1003F * hash);
-            }
-            for (var i = 0; i < szSkin.Length; i++)
-            {
-                hash = Char.ToLower(szSkin[i]) + (0x1003F * hash);
-            }
-            return hash;
-        }
-
         public override bool isInDistress()
         {
             return distressCause != null;
-        }
-
-        public short getSkillPoints()
-        {
-            return skillPoints;
-        }
-
-        public bool LevelUp()
-        {
-            var stats = GetStats();
-            var expMap = _game.GetMap().GetExperienceToLevelUp();
-            if (stats.GetLevel() >= expMap.Count)
-                return false;
-            if (stats.Experience < expMap[stats.Level])
-                return false;
-
-            while (stats.Level < expMap.Count && stats.Experience >= expMap[stats.Level])
-            {
-                GetStats().LevelUp();
-                Logger.LogCoreInfo("Champion " + getType() + " leveled up to " + stats.Level);
-                skillPoints++;
-            }
-            return true;
-        }
-
-        public InventoryManager getInventory()
-        {
-            return Inventory;
         }
 
         public override void die(Unit killer)
@@ -443,10 +395,6 @@ namespace LeagueSandbox.GameServer.Logic.GameObjects
 
             _game.GetMap().StopTargeting(this);
         }
-        public long getRespawnTimer()
-        {
-            return respawnTimer;
-        }
 
         public override void onCollision(GameObject collider)
         {
@@ -461,20 +409,6 @@ namespace LeagueSandbox.GameServer.Logic.GameObjects
             }
         }
 
-        public float getChampionGoldFromMinions()
-        {
-            return championGoldFromMinions;
-        }
-        public void setChampionGoldFromMinions(float gold)
-        {
-            championGoldFromMinions = gold;
-        }
-
-        public void setChampionHitFlagTimer(long time)
-        {
-            championHitFlagTimer = time;
-        }
-
         public override void dealDamageTo(Unit target, float damage, DamageType type, DamageSource source, bool isCrit)
         {
             base.dealDamageTo(target, damage, type, source, isCrit);
@@ -487,5 +421,86 @@ namespace LeagueSandbox.GameServer.Logic.GameObjects
             cTarget.playerHitId = id;
             //CORE_INFO("15 second execution timer on you. Do not get killed by a minion, turret or monster!");
         }
+        #endregion
+
+        #region Methods
+        public Spell castSpell(byte slot, float x, float y, Unit target, uint futureProjNetId, uint spellNetId)
+        { 
+            Spell s = null;
+            foreach (Spell t in spells)
+            {
+                if (t.getSlot() == slot)
+                {
+                    s = t;
+                }
+            }
+
+            if (s == null)
+            {
+                return null;
+            }
+
+            s.setSlot(slot);//temporary hack until we redo spells to be almost fully lua-based
+
+            if ((s.getCost() * (1 - stats.getSpellCostReduction())) > stats.CurrentMana || s.getState() != SpellState.STATE_READY)
+                return null;
+
+            if (_plugin.Loaded)
+            {
+                try
+                {
+                    _plugin.getContent<IUnit>().onStartCasting(s, x, y, target, futureProjNetId, spellNetId);
+                }
+                catch (Exception ex)
+                {
+                    PluginManager.Exception(ex, _plugin);
+                }
+            }
+
+            s.cast(x, y, target, futureProjNetId, spellNetId);
+            stats.CurrentMana = stats.CurrentMana - (s.getCost() * (1 - stats.getSpellCostReduction()));
+            return s;
+        }
+
+        public Spell levelUpSpell(short slot)
+        {
+            if (slot >= spells.Count)
+                return null;
+
+            if (skillPoints == 0)
+                return null;
+
+            spells[slot].levelUp();
+            --skillPoints;
+
+            return spells[slot];
+        }
+         
+        public bool LevelUp()
+        {
+            var stats = GetStats();
+            var expMap = _game.GetMap().GetExperienceToLevelUp();
+            if (stats.GetLevel() >= expMap.Count)
+                return false;
+            if (stats.Experience < expMap[stats.Level])
+                return false;
+
+            while (stats.Level < expMap.Count && stats.Experience >= expMap[stats.Level])
+            {
+                GetStats().LevelUp();
+                Logger.LogCoreInfo("Champion " + getType() + " leveled up to " + stats.Level);
+                skillPoints++;
+            }
+            return true;
+        }
+        #endregion
+
+
+        #region Methods for Plugin 
+        public void SendMessage(string Message)
+        {
+            _game.PacketNotifier.notifyDebugMessage(this, Message);
+        } 
+        #endregion
     }
 }

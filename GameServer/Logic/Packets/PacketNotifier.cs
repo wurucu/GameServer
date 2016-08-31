@@ -187,7 +187,7 @@ namespace LeagueSandbox.GameServer.Logic.Packets
             _game.PacketHandlerManager.broadcastPacket(dp, Channel.CHL_S2C);
         }
 
-        public void notifyParticleSpawn(Champion source, GameObjects.Target target, string particleName)
+        public void notifyParticleSpawn(Unit source, GameObjects.Target target, string particleName)
         {
             var sp = new SpawnParticle(source, target, particleName, _game.GetNewNetID());
             _game.PacketHandlerManager.broadcastPacket(sp, Channel.CHL_S2C);
@@ -286,6 +286,14 @@ namespace LeagueSandbox.GameServer.Logic.Packets
         {
             var dm = new DebugMessage(htmlDebugMessage);
             _game.PacketHandlerManager.broadcastPacket(dm, Channel.CHL_S2C);
+        }
+
+        public void notifyDebugMessage(Champion player, string htmlDebugMessage)
+        {
+            var dm = new DebugMessage(htmlDebugMessage);
+            var peer = player.GetGame().GetPlayers().Where(x => x.Item2.GetChampion().getNetId() == player.getNetId()).FirstOrDefault().Item2;
+            if (peer != null)
+                _game.PacketHandlerManager.sendPacket(peer.GetPeer() , dm, Channel.CHL_S2C); 
         }
 
         public void notifySpawn(Unit u)

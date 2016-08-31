@@ -113,7 +113,7 @@
     <Compile Include="Logic\GameObjects\BuildingStats.cs" />
     <Compile Include="Logic\GameObjects\Placeable.cs" />
     <Compile Include="Logic\GameObjects\Nexus.cs" />
-    <Compile Include="Logic\GameObjects\IBuff.cs" />
+    <Compile Include="PluginSystem\Faces\IBuff.cs" />
     <Compile Include="Logic\GameObjects\Inhibitor.cs" />
     <Compile Include="Logic\GameObjects\LevelProp.cs" />
     <Compile Include="Logic\GameObjects\Monster.cs" />
@@ -173,6 +173,9 @@
     <Compile Include="Logic\RAF\RAFManager.cs" />
     <Compile Include="Logic\Scripting\IScriptEngine.cs" />
     <Compile Include="Logic\Settings.cs" />
+    <Compile Include="PluginSystem\Faces\IUnit.cs" />
+    <Compile Include="PluginSystem\PluginItem.cs" />
+    <Compile Include="PluginSystem\PluginManager.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

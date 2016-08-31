@@ -1,4 +1,5 @@
-﻿using System;
+﻿using LeagueSandbox.GameServer.Logic.Enet;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -21,5 +22,11 @@ namespace LeagueSandbox.GameServer.Logic
             Item1 = t1;
             Item2 = t2;
         }
+    }
+
+    public struct SClientInfoR
+    {
+        public int Port { get; set; }
+        public ClientInfo Player { get; set; }
     }
 }

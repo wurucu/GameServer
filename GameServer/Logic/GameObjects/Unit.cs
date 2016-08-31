@@ -11,6 +11,8 @@ using NLua.Exceptions;
 using LeagueSandbox.GameServer.Logic.API;
 using LeagueSandbox.GameServer.Logic.Scripting;
 using LeagueSandbox.GameServer.Logic.Scripting.Lua;
+using LeagueSandbox.GameServer.PluginSystem;
+using LeagueSandbox.GameServer.PluginSystem.Faces;
 
 namespace LeagueSandbox.GameServer.Logic.GameObjects
 {
@@ -85,7 +87,7 @@ namespace LeagueSandbox.GameServer.Logic.GameObjects
 
         protected bool targetable;
         protected bool nextAutoIsCrit = false;
-        protected IScriptEngine _scriptEngine = new LuaScriptEngine();
+        protected PluginUnit _plugin = new PluginUnit();
 
         protected int killDeathCounter = 0;
         private object _buffsLock = new object();
@@ -100,26 +102,54 @@ namespace LeagueSandbox.GameServer.Logic.GameObjects
             this.stats = stats;
             this.model = model;
         }
-
-        public virtual void LoadLua()
+          
+        #region Gets
+        public int getKillDeathCounter()
         {
-            _scriptEngine = new LuaScriptEngine();
+            return killDeathCounter;
+        }
+         
+        public Dictionary<string, Buff> GetBuffs()
+        {
+            var toReturn = new Dictionary<string, Buff>();
+            lock (_buffsLock)
+            {
+                foreach (var buff in _buffs)
+                    toReturn.Add(buff.Key, buff.Value);
 
-            _scriptEngine.Execute("package.path = 'LuaLib/?.lua;' .. package.path");
-            _scriptEngine.Execute(@"
-                function onAutoAttack(target)
-                end");
-            _scriptEngine.Execute(@"
-                function onUpdate(diff)
-                end");
-            _scriptEngine.Execute(@"
-                function onDealDamage(target, damage, type, source)
-                end");
-            _scriptEngine.Execute(@"
-                function onDie(killer)
-                end");
+                return toReturn;
+            }
+        }
 
-            ApiFunctionManager.AddBaseFunctionToLuaScript(_scriptEngine);
+        public int GetBuffsCount()
+        {
+            return _buffs.Count;
+        }
+
+        public Unit getDistressCall()
+        {
+            return distressCause;
+        }
+
+        //todo: use statmods
+        public Buff GetBuff(string name)
+        {
+            lock (_buffsLock)
+            {
+                if (_buffs.ContainsKey(name))
+                    return _buffs[name];
+                return null;
+            }
+        }
+
+        public Unit getTargetUnit()
+        {
+            return targetUnit;
+        }
+
+        public string getModel()
+        {
+            return model;
         }
 
         public Stats GetStats()
@@ -127,22 +157,268 @@ namespace LeagueSandbox.GameServer.Logic.GameObjects
             return stats;
         }
 
+        public PluginBase getPlugin()
+        {
+            return _plugin;
+        }
+        #endregion
+
+        #region Sets
+        public void SetCastingSpell(bool newState)
+        {
+            isCastingSpell = newState;
+        }
+
+        public void setAutoAttackDelay(float newDelay)
+        {
+            autoAttackDelay = newDelay;
+        }
+
+        public void setAutoAttackProjectileSpeed(float newSpeed)
+        {
+            autoAttackProjectileSpeed = newSpeed;
+        }
+
+        public void setModel(string newModel)
+        {
+            model = newModel;
+            modelUpdated = true;
+        }
+
+        public void setDistressCall(Unit distress)
+        {
+            distressCause = distress;
+        }
+
+        public void setMoveOrder(MoveOrder moveOrder)
+        {
+            this.moveOrder = moveOrder;
+        }
+
+        public void setTargetUnit(Unit target)
+        {
+            if (target == null) // If we are unsetting the target (moving around)
+            {
+                if (targetUnit != null) // and we had a target
+                    targetUnit.setDistressCall(null); // Unset the distress call
+                                                      // TODO: Replace this with a delay?
+            }
+            else
+            {
+                target.setDistressCall(this); // Otherwise set the distress call
+            }
+
+            targetUnit = target;
+            refreshWaypoints();
+        }
+
+        public void setAutoAttackTarget(Unit target)
+        {
+            autoAttackTarget = target;
+        }
+
+        public void setMelee(bool melee)
+        {
+            this.melee = melee;
+        }
+        #endregion
+
+        #region Virtuals 
+        // This is called by the AA projectile when it hits its target
+        public virtual void autoAttackHit(Unit target)
+        {
+            float damage = (nextAutoIsCrit) ? stats.getCritDamagePct() * stats.AttackDamage.Total : stats.AttackDamage.Total;
+            if (_plugin.Loaded)
+            {
+                try
+                {
+                    damage = _plugin.getContent<IUnit>().onAutoAttack(target, damage, nextAutoIsCrit);
+                }
+                catch (Exception e)
+                {
+                    PluginManager.Exception(e, _plugin);
+                }
+            }
+            dealDamageTo(target, damage, DamageType.DAMAGE_TYPE_PHYSICAL, DamageSource.DAMAGE_SOURCE_ATTACK, nextAutoIsCrit);
+        }
+
+        public virtual void dealDamageTo(Unit target, float damage, DamageType type, DamageSource source, bool isCrit)
+        {
+            DamageText text = DamageText.DAMAGE_TEXT_NORMAL;
+
+            if (isCrit)
+            {
+                text = DamageText.DAMAGE_TEXT_CRITICAL;
+            }
+
+            float defense = 0;
+            float regain = 0;
+            switch (type)
+            {
+                case DamageType.DAMAGE_TYPE_PHYSICAL:
+                    defense = target.GetStats().Armor.Total;
+                    defense = (1 - stats.ArmorPenetration.PercentBonus) * defense - stats.ArmorPenetration.FlatBonus; // Zırh delme 
+                    break;
+                case DamageType.DAMAGE_TYPE_MAGICAL:
+                    defense = target.GetStats().MagicPenetration.Total;
+                    defense = (1 - stats.MagicPenetration.PercentBonus) * defense - stats.MagicPenetration.FlatBonus; // Büyü nüfusu
+                    break;
+            }
+
+            switch (source)
+            {
+                case DamageSource.DAMAGE_SOURCE_SPELL:
+                    regain = stats.SpellVamp.Total;
+                    break;
+                case DamageSource.DAMAGE_SOURCE_ATTACK:
+                    regain = stats.LifeSteal.Total;
+                    break;
+            }
+
+            //Damage dealing. (based on leagueoflegends' wikia)
+            damage = defense >= 0 ? (100 / (100 + defense)) * damage : (2 - (100 / (100 - defense))) * damage;
+
+            if (_plugin.Loaded)
+            {
+                try
+                {
+                    damage = _plugin.getContent<IUnit>().onDeliverDamage(target, damage, text, type, source);
+                }
+                catch (Exception e)
+                {
+                    PluginManager.Exception(e, _plugin);
+                }
+            }
+
+            target.GetStats().CurrentHealth = Math.Max(0.0f, target.GetStats().CurrentHealth - damage);
+            if (!target.deathFlag && target.GetStats().CurrentHealth <= 0)
+            {
+                target.deathFlag = true;
+                target.die(this);
+                if (_plugin.Loaded)
+                {
+                    try
+                    {
+                        _plugin.getContent<IUnit>().onKilled(target);
+                    }
+                    catch (Exception e)
+                    {
+                        PluginManager.Exception(e, _plugin);
+                    }
+                }
+            }
+            _game.PacketNotifier.notifyDamageDone(this, target, damage, type, text);
+
+            //Get health from lifesteal/spellvamp
+            if (regain != 0)
+            {
+                stats.CurrentHealth = Math.Min(stats.HealthPoints.Total, stats.CurrentHealth + regain * damage);
+                _game.PacketNotifier.notifyUpdatedStats(this);
+            }
+        }
+
+        public virtual void die(Unit killer)
+        {
+            if (_plugin.Loaded)
+            {
+                try
+                {
+                    _plugin.getContent<IUnit>().onDie(killer);
+                }
+                catch (Exception e)
+                {
+                    PluginManager.Exception(e, _plugin);
+                }
+            }
+
+            setToRemove();
+            _game.GetMap().StopTargeting(this);
+
+            _game.PacketNotifier.notifyNpcDie(this, killer);
+
+            float exp = _game.GetMap().GetExperienceFor(this);
+            var champs = _game.GetMap().GetChampionsInRange(this, EXP_RANGE, true);
+            //Cull allied champions
+            champs.RemoveAll(l => l.getTeam() == getTeam());
+
+            if (champs.Count > 0)
+            {
+                float expPerChamp = exp / champs.Count;
+                foreach (var c in champs)
+                {
+                    c.GetStats().Experience += expPerChamp;
+                    _game.PacketNotifier.NotifyAddXP(c, expPerChamp);
+                }
+            }
+
+            if (killer != null)
+            {
+                var cKiller = killer as Champion;
+
+                if (cKiller == null)
+                    return;
+
+                float gold = _game.GetMap().GetGoldFor(this);
+                if (gold <= 0)
+                    return;
+
+                cKiller.GetStats().Gold += gold;
+                _game.PacketNotifier.notifyAddGold(cKiller, this, gold);
+
+                if (cKiller.killDeathCounter < 0)
+                {
+                    cKiller.setChampionGoldFromMinions(cKiller.getChampionGoldFromMinions() + gold);
+                    Logger.LogCoreInfo("Adding gold form minions to reduce death spree: " + cKiller.getChampionGoldFromMinions());
+                }
+
+                if (cKiller.getChampionGoldFromMinions() >= 50 && cKiller.killDeathCounter < 0)
+                {
+                    cKiller.setChampionGoldFromMinions(0);
+                    cKiller.killDeathCounter += 1;
+                }
+            }
+        }
+
+        public virtual bool isInDistress()
+        {
+            return false; /*return distressCause;*/
+        }
+         
+        public virtual void refreshWaypoints()
+        {
+            if (targetUnit == null || (distanceWith(targetUnit) <= stats.Range.Total && waypoints.Count == 1))
+                return;
+
+            if (distanceWith(targetUnit) <= stats.Range.Total - 2.0f)
+            {
+                setWaypoints(new List<Vector2> { new Vector2(x, y) });
+            }
+            else
+            {
+                Target t = new Target(waypoints[waypoints.Count - 1]);
+                if (t.distanceWith(targetUnit) >= 25.0f)
+                {
+                    setWaypoints(new List<Vector2> { new Vector2(x, y), new Vector2(targetUnit.getX(), targetUnit.getY()) });
+                }
+            }
+        }
+        #endregion
+
+        #region Overrides
         public override void update(long diff)
         {
             _timerUpdate += diff;
             if (_timerUpdate >= UPDATE_TIME)
             {
-                if (_scriptEngine.IsLoaded())
+                if (_plugin.Loaded)
                 {
                     try
                     {
-                        _scriptEngine.SetGlobalVariable("diff", _timerUpdate);
-                        _scriptEngine.SetGlobalVariable("me", this);
-                        _scriptEngine.Execute("onUpdate(diff)");
+                        _plugin.getContent<IUnit>().onUpdate(_timerUpdate);
                     }
-                    catch (LuaScriptException e)
+                    catch (Exception e)
                     {
-                        Logger.LogCoreError("LUA ERROR : " + e.Message);
+                        PluginManager.Exception(e, _plugin);
                     }
                 }
                 _timerUpdate = 0;
@@ -254,141 +530,24 @@ namespace LeagueSandbox.GameServer.Logic.GameObjects
             return stats.MoveSpeed.Total;
         }
 
-        public int getKillDeathCounter()
-        {
-            return killDeathCounter;
-        }
-
-
-        public Dictionary<string, Buff> GetBuffs()
-        {
-            var toReturn = new Dictionary<string, Buff>();
-            lock (_buffsLock)
-            {
-                foreach (var buff in _buffs)
-                    toReturn.Add(buff.Key, buff.Value);
-
-                return toReturn;
-            }
-        }
-
-        public int GetBuffsCount()
-        {
-            return _buffs.Count;
-        }
-
         public override void onCollision(GameObject collider)
         {
             base.onCollision(collider);
-            if (_scriptEngine.IsLoaded())
+            if (_plugin.Loaded)
             {
                 try
                 {
-                    _scriptEngine.SetGlobalVariable("object", collider);
-                    _scriptEngine.Execute("onCollide(object)");
+                    _plugin.getContent<IUnit>().onCollide(collider);
                 }
-                catch (LuaException e)
+                catch (Exception e)
                 {
-                    Logger.LogCoreError("LUA ERROR : " + e.Message);
+                    PluginManager.Exception(e, _plugin);
                 }
             }
         }
+        #endregion
 
-        /**
-        * This is called by the AA projectile when it hits its target
-        */
-        public virtual void autoAttackHit(Unit target)
-        {
-            float damage = (nextAutoIsCrit) ? stats.getCritDamagePct() * stats.AttackDamage.Total : stats.AttackDamage.Total;
-
-                dealDamageTo(target, damage, DamageType.DAMAGE_TYPE_PHYSICAL,
-                                             DamageSource.DAMAGE_SOURCE_ATTACK,
-                                             nextAutoIsCrit);
-
-            if (_scriptEngine.IsLoaded())
-            {
-                try
-                {
-                    _scriptEngine.SetGlobalVariable("target", target);
-                    _scriptEngine.Execute("onAutoAttack(target)");
-                }
-                catch (LuaScriptException e)
-                {
-                    Logger.LogCoreError("LUA ERROR : " + e.Message);
-                }
-            }
-        }
-
-        public virtual void dealDamageTo(Unit target, float damage, DamageType type, DamageSource source, bool isCrit)
-        {
-            DamageText text= DamageText.DAMAGE_TEXT_NORMAL;
-
-            if (isCrit)
-            {
-                text = DamageText.DAMAGE_TEXT_CRITICAL;
-            }
-
-            if (_scriptEngine.IsLoaded())
-            {
-                try
-                {
-                    _scriptEngine.SetGlobalVariable("target", target);
-                    _scriptEngine.SetGlobalVariable("damage", damage);
-                    _scriptEngine.SetGlobalVariable("type", type);
-                    _scriptEngine.SetGlobalVariable("source", source);
-                    _scriptEngine.Execute("onDealDamage(target, damage, type, source)");
-                }
-                catch (LuaScriptException e)
-                {
-                    Logger.LogCoreError("ERROR LUA : " + e.Message);
-                }
-            }
-
-
-            float defense = 0;
-            float regain = 0;
-            switch (type)
-            {
-                case DamageType.DAMAGE_TYPE_PHYSICAL:
-                    defense = target.GetStats().Armor.Total;
-                    defense = (1 - stats.ArmorPenetration.PercentBonus) * defense - stats.ArmorPenetration.FlatBonus;
-
-                    break;
-                case DamageType.DAMAGE_TYPE_MAGICAL:
-                    defense = target.GetStats().MagicPenetration.Total;
-                    defense = (1 - stats.MagicPenetration.PercentBonus)*defense - stats.MagicPenetration.FlatBonus;
-                    break;
-            }
-
-            switch (source)
-            {
-                case DamageSource.DAMAGE_SOURCE_SPELL:
-                    regain = stats.SpellVamp.Total;
-                    break;
-                case DamageSource.DAMAGE_SOURCE_ATTACK:
-                    regain = stats.LifeSteal.Total;
-                    break;
-            }
-
-            //Damage dealing. (based on leagueoflegends' wikia)
-            damage = defense >= 0 ? (100 / (100 + defense)) * damage : (2 - (100 / (100 - defense))) * damage;
-
-            target.GetStats().CurrentHealth = Math.Max(0.0f, target.GetStats().CurrentHealth - damage);
-            if (!target.deathFlag && target.GetStats().CurrentHealth <= 0)
-            {
-                target.deathFlag = true;
-                target.die(this);
-            }
-            _game.PacketNotifier.notifyDamageDone(this, target, damage, type, text);
-
-            //Get health from lifesteal/spellvamp
-            if (regain != 0)
-            {
-                stats.CurrentHealth = Math.Min(stats.HealthPoints.Total, stats.CurrentHealth + regain * damage);
-                _game.PacketNotifier.notifyUpdatedStats(this);
-            }
-        }
-
+        #region IS_Checks
         public bool isDead()
         {
             return deathFlag;
@@ -399,100 +558,18 @@ namespace LeagueSandbox.GameServer.Logic.GameObjects
             return isCastingSpell;
         }
 
-        public void SetCastingSpell(bool newState)
-        {
-            isCastingSpell = newState;
-        }
-
-        public virtual void die(Unit killer)
-        {
-            if (_scriptEngine.IsLoaded())
-            {
-                try
-                {
-                    _scriptEngine.SetGlobalVariable("killer", killer);
-                    _scriptEngine.Execute("onDie(killer)");
-                }
-                catch (LuaScriptException e)
-                {
-                    Logger.LogCoreError("LUA ERROR : " + e.Message);
-                }
-            }
-
-            setToRemove();
-            _game.GetMap().StopTargeting(this);
-
-            _game.PacketNotifier.notifyNpcDie(this, killer);
-
-            float exp = _game.GetMap().GetExperienceFor(this);
-            var champs = _game.GetMap().GetChampionsInRange(this, EXP_RANGE, true);
-            //Cull allied champions
-            champs.RemoveAll(l => l.getTeam() == getTeam());
-
-            if (champs.Count > 0)
-            {
-                float expPerChamp = exp / champs.Count;
-                foreach (var c in champs)
-                {
-                    c.GetStats().Experience += expPerChamp;
-                    _game.PacketNotifier.NotifyAddXP(c, expPerChamp);
-                }
-            }
-
-            if (killer != null)
-            {
-                var cKiller = killer as Champion;
-
-                if (cKiller == null)
-                    return;
-
-                float gold = _game.GetMap().GetGoldFor(this);
-                if (gold <= 0)
-                    return;
-
-                cKiller.GetStats().Gold += gold;
-                _game.PacketNotifier.notifyAddGold(cKiller, this, gold);
-
-                if (cKiller.killDeathCounter < 0)
-                {
-                    cKiller.setChampionGoldFromMinions(cKiller.getChampionGoldFromMinions() + gold);
-                    Logger.LogCoreInfo("Adding gold form minions to reduce death spree: " + cKiller.getChampionGoldFromMinions());
-                }
-
-                if (cKiller.getChampionGoldFromMinions() >= 50 && cKiller.killDeathCounter < 0)
-                {
-                    cKiller.setChampionGoldFromMinions(0);
-                    cKiller.killDeathCounter += 1;
-                }
-            }
-        }
-
-        public void setAutoAttackDelay(float newDelay)
-        {
-            autoAttackDelay = newDelay;
-        }
-
-        public void setAutoAttackProjectileSpeed(float newSpeed)
-        {
-            autoAttackProjectileSpeed = newSpeed;
-        }
-
-        public void setModel(string newModel)
-        {
-            model = newModel;
-            modelUpdated = true;
-        }
-
-        public string getModel()
-        {
-            return model;
-        }
-
         public bool isModelUpdated()
         {
             return modelUpdated;
         }
 
+        public bool isMelee()
+        {
+            return melee;
+        }
+        #endregion
+
+        #region Methods
         public void clearModelUpdated()
         {
             modelUpdated = false;
@@ -525,107 +602,23 @@ namespace LeagueSandbox.GameServer.Logic.GameObjects
                 _buffs.Remove(b);
         }
 
-        public void setDistressCall(Unit distress)
-        {
-            distressCause = distress;
-        }
-
-        public Unit getDistressCall()
-        {
-            return distressCause;
-        }
-
-        public virtual bool isInDistress()
-        {
-            return false; /*return distressCause;*/
-        }
-
-        //todo: use statmods
-        public Buff GetBuff(string name)
-        {
-            lock (_buffsLock)
-            {
-                if (_buffs.ContainsKey(name))
-                    return _buffs[name];
-                return null;
-            }
-        }
-
-        public void setMoveOrder(MoveOrder moveOrder)
-        {
-            this.moveOrder = moveOrder;
-        }
-
-        public void setTargetUnit(Unit target)
-        {
-            if (target == null) // If we are unsetting the target (moving around)
-            {
-                if (targetUnit != null) // and we had a target
-                    targetUnit.setDistressCall(null); // Unset the distress call
-                                                      // TODO: Replace this with a delay?
-            }
-            else
-            {
-                target.setDistressCall(this); // Otherwise set the distress call
-            }
-
-            targetUnit = target;
-            refreshWaypoints();
-        }
-
-        public void setAutoAttackTarget(Unit target)
-        {
-            autoAttackTarget = target;
-        }
-
-        public Unit getTargetUnit()
-        {
-            return targetUnit;
-        }
-
-        public virtual void refreshWaypoints()
-        {
-            if (targetUnit == null || (distanceWith(targetUnit) <= stats.Range.Total && waypoints.Count == 1))
-                return;
-
-            if (distanceWith(targetUnit) <= stats.Range.Total - 2.0f)
-            {
-                setWaypoints(new List<Vector2> { new Vector2(x, y) });
-            }
-            else
-            {
-                Target t = new Target(waypoints[waypoints.Count - 1]);
-                if (t.distanceWith(targetUnit) >= 25.0f)
-                {
-                    setWaypoints(new List<Vector2> { new Vector2(x, y), new Vector2(targetUnit.getX(), targetUnit.getY()) });
-                }
-            }
-        }
-        public bool isMelee()
-        {
-            return melee;
-        }
-        public void setMelee(bool melee)
-        {
-            this.melee = melee;
-        }
         public int classifyTarget(Unit target)
         {
             /*
-Under normal circumstances, a minion痴 behavior is simple. Minions follow their attack route until they reach an enemy to engage.
-Every few seconds, they will scan the area around them for the highest priority target. When a minion receives a call for help
-from an ally, it will evaluate its current target in relation to the target designated by the call. It will switch its attack
-to the new target if and only if the new target is of a higher priority than their current target. Minions prioritize targets
-in the following order:
+            Under normal circumstances, a minion痴 behavior is simple. Minions follow their attack route until they reach an enemy to engage.
+            Every few seconds, they will scan the area around them for the highest priority target. When a minion receives a call for help
+            from an ally, it will evaluate its current target in relation to the target designated by the call. It will switch its attack
+            to the new target if and only if the new target is of a higher priority than their current target. Minions prioritize targets
+            in the following order:
 
-    1. An enemy champion designated by a call for help from an allied champion. (Enemy champion attacking an Allied champion)
-    2. An enemy minion designated by a call for help from an allied champion. (Enemy minion attacking an Allied champion)
-    3. An enemy minion designated by a call for help from an allied minion. (Enemy minion attacking an Allied minion)
-    4. An enemy turret designated by a call for help from an allied minion. (Enemy turret attacking an Allied minion)
-    5. An enemy champion designated by a call for help from an allied minion. (Enemy champion attacking an Allied minion)
-    6. The closest enemy minion.
-    7. The closest enemy champion.
-*/
+                1. An enemy champion designated by a call for help from an allied champion. (Enemy champion attacking an Allied champion)
+                2. An enemy minion designated by a call for help from an allied champion. (Enemy minion attacking an Allied champion)
+                3. An enemy minion designated by a call for help from an allied minion. (Enemy minion attacking an Allied minion)
+                4. An enemy turret designated by a call for help from an allied minion. (Enemy turret attacking an Allied minion)
+                5. An enemy champion designated by a call for help from an allied minion. (Enemy champion attacking an Allied minion)
+                6. The closest enemy minion.
+                7. The closest enemy champion.
+            */
 
             if (target.targetUnit != null && target.targetUnit.isInDistress()) // If an ally is in distress, target this unit. (Priority 1~5)
             {
@@ -692,6 +685,50 @@ in the following order:
 
             return 10;*/
         }
+        #endregion
+
+        #region Method for Plugin
+
+        public void DashTo(Unit unit, float x, float y, float dashSpeed, float leapHeight, string animation = null)
+        {
+            if (animation != null)
+            {
+                List<string> animList = new List<string>();
+                animList.Add("RUN");
+                animList.Add(animation);
+                _game.PacketNotifier.notifySetAnimation(unit, animList);
+            }
+
+            var newCoords = unit.GetGame().GetMap().getAIMesh().getClosestTerrainExit(new Vector2(x, y));
+            unit.dashTo(newCoords.X, newCoords.Y, dashSpeed);
+            unit.setTargetUnit(null);
+            _game.PacketNotifier.notifyDash(unit, x, y, dashSpeed, leapHeight);
+        }
+
+        public void SetModel(string model)
+        {
+            this.setModel(model);
+        }
+
+        public void AddParticleTarget(string particle, Target target)
+        {
+            _game.PacketNotifier.notifyParticleSpawn(this, target, particle);
+        }
+
+        public void AddParticle(string particle, float toX, float toY)
+        {
+            Target t = new Target(toX, toY);
+            _game.PacketNotifier.notifyParticleSpawn(this, t, particle);
+        }
+
+        public void TeleportTo(float x, float y)
+        {
+            var coords = new Vector2(x, y);
+            var truePos = this.GetGame().GetMap().getAIMesh().getClosestTerrainExit(coords);
+            _game.PacketNotifier.notifyTeleport(this, truePos.X, truePos.Y);
+        }
+
+        #endregion
     }
 
     public enum UnitAnnounces : byte

@@ -22,12 +22,12 @@ namespace LeagueSandbox.GameServer.Core.Logic.PacketHandlers.Packets
 
             var playerNo = 0;
 
-            foreach (var p in game.GetPlayers())
+            for (int i = 0; i < game.GetPlayers().Count; i++)
             {
-                var player = p.Item2;
-                if (player.UserId == userId)
+                var p = game.GetPlayers()[i];
+                if (p.Item2.UserId == userId)
                 {
-                    if (player.GetPeer() != null)
+                    if (p.Item2.GetPeer() != null)
                     {
                         Logger.LogCoreWarning("Ignoring new player " + userId + ", already connected!");
                         return false;
@@ -35,10 +35,10 @@ namespace LeagueSandbox.GameServer.Core.Logic.PacketHandlers.Packets
 
                     //TODO: add at least port or smth
                     p.Item1 = peer.Address.port;
-                    player.SetPeer(peer);
+                    p.Item2.SetPeer(peer);
                     var response = new KeyCheck(keyCheck.userId, playerNo);
                     bool bRet = game.PacketHandlerManager.sendPacket(peer, response, Channel.CHL_HANDSHAKE);
-                    handleGameNumber(player, peer, game);//Send 0x91 Packet?
+                    handleGameNumber(p.Item2, peer, game);//Send 0x91 Packet?
                     return true;
                 }
                 ++playerNo;

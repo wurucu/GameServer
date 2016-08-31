@@ -150,6 +150,7 @@ namespace LeagueSandbox.GameServer.Core.Logic.PacketHandlers
         PKT_C2S_StatsConfirm = 0xA8,
         PKT_C2S_Click = 0xAF,
         PKT_C2S_SynchVersion = 0xBD,
+        PKT_C2S_SynchVersion2 = 0xC6, // FOR TEST
         PKT_C2S_CharLoaded = 0xBE,
         PKT_C2S_QuestClicked = 0xCD,
         PKT_C2S_Batch = 0xFF

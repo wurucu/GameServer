@@ -264,6 +264,11 @@ namespace LeagueSandbox.GameServer.Logic
             return distanceWithSqr(o) < (getCollisionRadius() + o.getCollisionRadius()) * (getCollisionRadius() + o.getCollisionRadius());
         }
 
+        public bool defination(Target o)
+        {
+            return distanceWithSqr(o) < (getCollisionRadius()) * (getCollisionRadius());
+        }
+
         public int getAttackerCount()
         {
             return attackerCount;

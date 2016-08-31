@@ -7,18 +7,26 @@ using System.Text;
 using System.Threading.Tasks;
 using LeagueSandbox.GameServer.Core.Logic;
 using LeagueSandbox.GameServer.Logic.Enet;
+using LeagueSandbox.GameServer.PluginSystem.Faces;
+using LeagueSandbox.GameServer.PluginSystem;
 
 namespace LeagueSandbox.GameServer.Logic.GameObjects
 {
-    public class Projectile : GameObject
+    public enum EProjectileTargetType
     {
+        Unit,
+        Position
+    }
 
+    public class Projectile : GameObject
+    { 
         protected List<GameObject> objectsHit = new List<GameObject>();
         protected Spell originSpell;
         protected Unit owner;
         protected float moveSpeed;
         protected int projectileId;
         protected int flags;
+        protected EProjectileTargetType TargetType;
 
         public Projectile(Game game, uint id, float x, float y, int collisionRadius, Unit owner, Target target, Spell originSpell, float moveSpeed, int projectileId, int flags = 0) : base(game, id, x, y, collisionRadius)
         {
@@ -120,8 +128,24 @@ namespace LeagueSandbox.GameServer.Logic.GameObjects
                 }
             }
 
+            if (this.TargetType == EProjectileTargetType.Position && this.target != null && defination(this.target))
+            {
+                if (this.getOwner().getPlugin().Loaded)
+                {
+                    try
+                    { 
+                        short spellSlot = this.originSpell == null ? (short)-1 : this.originSpell.getSlot();
+                        this.getOwner().getPlugin().getContent<IUnit>().onDefinationProjectTile(this.originSpell, spellSlot, this, this.target.getX(), this.target.getY());
+                    }
+                    catch (Exception ex)
+                    {
+                        PluginManager.Exception(ex, this.getOwner().getPlugin());
+                    } 
+                } 
+            }
+
             base.update(diff);
-        }
+        } 
 
         public override float getMoveSpeed()
         {

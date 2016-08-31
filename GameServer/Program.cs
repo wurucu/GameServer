@@ -55,6 +55,8 @@ namespace LeagueSandbox
                 return;
             }
 
+            Game.Games.Add(game);
+
             game.NetLoop();
 
             PathNode.DestroyTable(); // Cleanup

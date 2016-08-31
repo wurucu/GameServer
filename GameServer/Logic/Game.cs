@@ -11,19 +11,20 @@ using LeagueSandbox.GameServer.Core.Logic.PacketHandlers;
 using LeagueSandbox.GameServer.Logic.GameObjects;
 using ENet;
 using LeagueSandbox.GameServer.Logic.Packets;
-using LeagueSandbox.GameServer.Logic.Maps;
-using System.Net.Sockets;
-using System.Net;
+using LeagueSandbox.GameServer.Logic.Maps; 
 using BlowFishCS;
 using System.Threading;
 using LeagueSandbox.GameServer.Logic.API;
 using LeagueSandbox.GameServer.Logic.Content;
 using LeagueSandbox.GameServer.Logic.Chatbox;
+using LeagueSandbox.GameServer.PluginSystem.Faces;
 
 namespace LeagueSandbox.GameServer.Core.Logic
 {
     public class Game
     {
+        public static List<Game> Games = new List<Game>();
+
         protected Host _server;
         protected BlowFish Blowfish;
         protected uint _dwStart = 0x40000000; //new netid
@@ -32,7 +33,7 @@ namespace LeagueSandbox.GameServer.Core.Logic
         protected bool _started = false;
         protected int _playersReady = 0;
 
-        protected List<Pair<uint, ClientInfo>> _players = new List<Pair<uint, ClientInfo>>();
+        protected List<Pair<uint,ClientInfo>> _players = new List<Pair<uint, ClientInfo>>();
         private Map _map;
         public PacketNotifier PacketNotifier { get; protected set; }
         public PacketHandlerManager PacketHandlerManager { get; protected set; }
@@ -48,6 +49,9 @@ namespace LeagueSandbox.GameServer.Core.Logic
         // Other managers
         public ChatboxManager ChatboxManager { get; protected set; }
 
+        // Interface
+        //List<SClientInfo> IGame.Players => _players;
+          
         public bool Initialize(Address address, string baseKey)
         {
             Logger.LogCoreInfo("Loading Config.");
@@ -96,6 +100,7 @@ namespace LeagueSandbox.GameServer.Core.Logic
             }
             return true;
         }
+
         public void NetLoop()
         {
             var watch = new Stopwatch();
@@ -111,7 +116,7 @@ namespace LeagueSandbox.GameServer.Core.Logic
 
                             /* Set some defaults */
                             enetEvent.Peer.Mtu = PEER_MTU;
-                            enetEvent.Data = 0;
+                            enetEvent.Data = 0; 
                             break;
 
                         case EventType.Receive:

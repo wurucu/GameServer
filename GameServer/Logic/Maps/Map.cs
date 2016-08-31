@@ -76,6 +76,13 @@ namespace LeagueSandbox.GameServer.Logic.Maps
 
         }
 
+        public string getGameTimeString()
+        {
+            long second = _gameTime / 1000;
+            TimeSpan time = TimeSpan.FromSeconds(second);
+            return time.ToString(@"hh\:mm\:ss");
+        }
+
         public virtual void Update(long diff)
         {
             var temp = GetObjects();

@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using LeagueSandbox.GameServer.Logic.Items;
 using LeagueSandbox.GameServer.Core.Logic.PacketHandlers;
+using LeagueSandbox.GameServer.PluginSystem.Faces;
 
 namespace LeagueSandbox.GameServer.Logic.Content
 {
