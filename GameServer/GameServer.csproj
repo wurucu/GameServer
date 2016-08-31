@@ -113,6 +113,7 @@
     <Compile Include="Logic\GameObjects\BuildingStats.cs" />
     <Compile Include="Logic\GameObjects\Placeable.cs" />
     <Compile Include="Logic\GameObjects\Nexus.cs" />
+    <Compile Include="Logic\Maps\SummonersNewRift.cs" />
     <Compile Include="PluginSystem\Faces\IBuff.cs" />
     <Compile Include="Logic\GameObjects\Inhibitor.cs" />
     <Compile Include="Logic\GameObjects\LevelProp.cs" />
@@ -178,6 +179,9 @@
     <Compile Include="PluginSystem\PluginManager.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="WTool\IWClient.cs" />
+    <Compile Include="WTool\WClient.cs" />
+    <Compile Include="WTool\WServer.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />

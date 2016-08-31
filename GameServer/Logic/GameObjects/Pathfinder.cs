@@ -17,7 +17,7 @@ namespace LeagueSandbox.GameServer.Logic.GameObjects
         protected static int successes = 0, oot = 0, empties = 0;
         protected static int totalDuration = 0, durations = 0;
         protected static DateTime g_Clock = System.DateTime.Now;
-        protected static bool debugOutput = false;
+        protected static bool debugOutput = true;
         protected static int MAX_PATHFIND_TRIES = 100;
 
         public Pathfinder()/*:mesh(0),chart(0)*/ { }

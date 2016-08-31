@@ -177,7 +177,11 @@ namespace LeagueSandbox.GameServer.Logic.Packets
 
         public void notifyProjectileSpawn(Projectile p)
         {
-            var sp = new SpawnProjectile(p);
+            var sp = new BasePacket();
+            if (p.getTargetType() == EProjectileTargetType.Normal || p.getTargetType() == EProjectileTargetType.DefinationCallBack)
+                sp = new SpawnProjectile(p);
+            if (p.getTargetType() == EProjectileTargetType.TargetFallow)
+                sp = new SpawnProjectileTarget(p);
             _game.PacketHandlerManager.broadcastPacket(sp, Channel.CHL_S2C);
         }
 

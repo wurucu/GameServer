@@ -69,7 +69,7 @@ namespace LeagueSandbox.GameServer.Core.Logic
 
             Blowfish = new BlowFish(key);
             PacketHandlerManager = new PacketHandlerManager(this);
-            _map = new SummonersRift(this);
+            _map = new SummonersNewRift(this);
             PacketNotifier = new PacketNotifier(this);
             ApiFunctionManager.SetGame(this);
 

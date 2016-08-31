@@ -9,6 +9,7 @@ using LeagueSandbox.GameServer.Logic.Enet;
 using LeagueSandbox.GameServer.Logic.GameObjects;
 using LeagueSandbox.GameServer.Logic.Items;
 using LeagueSandbox.GameServer.Logic.Content;
+using LeagueSandbox.GameServer.PluginSystem.Faces;
 
 namespace LeagueSandbox.GameServer.Core.Logic.PacketHandlers.Packets
 {
@@ -25,6 +26,9 @@ namespace LeagueSandbox.GameServer.Core.Logic.PacketHandlers.Packets
             {
                 var spawn = new HeroSpawn(p.Item2, playerId++);
                 game.PacketHandlerManager.sendPacket(peer, spawn, Channel.CHL_S2C);
+
+                if (p.Item2.GetChampion().getPlugin().Loaded)
+                    p.Item2.GetChampion().getPlugin().getContent<IUnit>().onSpawn();
 
                 var info = new PlayerInfo(p.Item2);
                 game.PacketHandlerManager.sendPacket(peer, info, Channel.CHL_S2C);
@@ -100,6 +104,11 @@ namespace LeagueSandbox.GameServer.Core.Logic.PacketHandlers.Packets
 
             var end = new StatePacket(PacketCmdS2C.PKT_S2C_EndSpawn);
             return game.PacketHandlerManager.sendPacket(peer, end, Channel.CHL_S2C);
+        }
+
+        private object IUnity()
+        {
+            throw new NotImplementedException();
         }
     }
 }

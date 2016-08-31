@@ -33,6 +33,10 @@
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Numerics" />
+    <Reference Include="System.Numerics.Vectors">
+      <HintPath>..\..\..\..\CSHARPGameServer-master_Duzgun\packages\System.Numerics.Vectors.4.1.0\lib\net46\System.Numerics.Vectors.dll</HintPath>
+    </Reference>
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -41,8 +45,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Ahri.cs" />
+    <Compile Include="Champions\Ahri.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="SummonerSpells\Flash.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\GameServer\GameServer.csproj">
@@ -50,6 +55,7 @@
       <Name>GameServer</Name>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PreBuildEvent>

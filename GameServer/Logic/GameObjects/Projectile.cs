@@ -14,8 +14,9 @@ namespace LeagueSandbox.GameServer.Logic.GameObjects
 {
     public enum EProjectileTargetType
     {
-        Unit,
-        Position
+        TargetFallow,
+        Normal,
+        DefinationCallBack
     }
 
     public class Projectile : GameObject
@@ -23,27 +24,33 @@ namespace LeagueSandbox.GameServer.Logic.GameObjects
         protected List<GameObject> objectsHit = new List<GameObject>();
         protected Spell originSpell;
         protected Unit owner;
-        protected float moveSpeed;
+        protected float missileSpeed;
+        protected float missileMinSpeed;
+        protected float missileMaxSpeed;
         protected int projectileId;
         protected int flags;
-        protected EProjectileTargetType TargetType;
+        protected EProjectileTargetType targetType;
+        protected float _startX;
+        protected float _startY;
 
-        public Projectile(Game game, uint id, float x, float y, int collisionRadius, Unit owner, Target target, Spell originSpell, float moveSpeed, int projectileId, int flags = 0) : base(game, id, x, y, collisionRadius)
-        {
+        public Projectile(Game game, uint id, float x, float y, int collisionRadius, Unit owner, Target target, Spell originSpell, float moveSpeed, int projectileId, EProjectileTargetType targetType, int flags = 0) : base(game, id, x, y, collisionRadius)
+        { 
             this.originSpell = originSpell;
-            this.moveSpeed = moveSpeed;
+            this.missileSpeed = moveSpeed;
             this.owner = owner;
             this.projectileId = projectileId;
-            this.flags = flags;
-
+            this.flags = flags; 
             setTarget(target);
-
+            this._startX = x;
+            this._startY = y;
+             
             if (!target.isSimpleTarget())
                 ((GameObject)target).incrementAttackerCount();
 
             owner.incrementAttackerCount();
         }
 
+        #region Overrides
         public override void update(long diff)
         {
             if (target == null)
@@ -128,7 +135,7 @@ namespace LeagueSandbox.GameServer.Logic.GameObjects
                 }
             }
 
-            if (this.TargetType == EProjectileTargetType.Position && this.target != null && defination(this.target))
+            if (this.targetType == EProjectileTargetType.DefinationCallBack && this.target != null && defination(this.target))
             {
                 if (this.getOwner().getPlugin().Loaded)
                 {
@@ -149,17 +156,7 @@ namespace LeagueSandbox.GameServer.Logic.GameObjects
 
         public override float getMoveSpeed()
         {
-            return moveSpeed;
-        }
-
-        public Unit getOwner()
-        {
-            return owner;
-        }
-
-        public List<GameObject> getObjectsHit()
-        {
-            return objectsHit;
+            return missileSpeed;
         }
 
         public override void setToRemove()
@@ -171,10 +168,110 @@ namespace LeagueSandbox.GameServer.Logic.GameObjects
             base.setToRemove();
             _game.PacketNotifier.notifyProjectileDestroy(this);
         }
+        #endregion
 
+        #region Gets
+        public Unit getOwner()
+        {
+            return owner;
+        }
+
+        public List<GameObject> getObjectsHit()
+        {
+            return objectsHit;
+        }
+         
         public int getProjectileId()
         {
             return projectileId;
         }
+
+        public Spell getSpell()
+        {
+            return this.originSpell;
+        }
+
+        public float getMissileSpeed()
+        {
+            return this.missileSpeed;
+        }
+
+        public float getMissileMinSpeed()
+        {
+            return this.missileMinSpeed;
+        }
+
+        public float getMissileMaxSpeed()
+        {
+            return this.missileMaxSpeed;
+        }
+
+        public EProjectileTargetType getTargetType()
+        {
+            return targetType;
+        }
+
+        public Unit getTargetUnit()
+        {
+            return this.target as Unit;
+        }
+
+        public float getStartX()
+        {
+            return _startX;
+        }
+
+        public float getStartY()
+        {
+            return _startX;
+        }
+        #endregion
+
+        #region Sets
+        public Projectile setMissileMaxSpeed(float value)
+        {
+            this.missileMaxSpeed = value;
+            return this;
+        }
+
+        public Projectile setMissileMinSpeed(float value)
+        {
+            this.missileMinSpeed = value;
+            return this;
+        }
+
+        public Projectile setMissileSpeed(float value)
+        {
+            this.missileSpeed = value;
+            return this;
+        }
+
+        public Projectile setStartX(float value)
+        {
+            this._startX = value;
+            return this;
+        }
+
+        public Projectile setStartY(float value)
+        {
+            this._startY = value;
+            return this;
+        }
+
+        public Projectile setStartPosition(float X, float Y)
+        {
+            this._startX = X;
+            this._startY = Y;
+            return this;
+        }
+        #endregion
+
+        #region
+        public void Notify()
+        {
+            GetGame().GetMap().AddObject(this);
+            GetGame().PacketNotifier.notifyProjectileSpawn(this);
+        }
+        #endregion
     }
 }

@@ -25,5 +25,6 @@ namespace LeagueSandbox.GameServer.PluginSystem.Faces
         void onLevelUpSpell(short slot);
         void onUpdate(long diff);
         float onAutoAttack(Unit target, float damage, bool nextAutoIsCrit);
+        void onSpawn();
     }
 }

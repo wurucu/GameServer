@@ -453,8 +453,8 @@ namespace LeagueSandbox.GameServer.Logic.GameObjects
                     if (autoAttackCurrentDelay >= autoAttackDelay / stats.AttackSpeedMultiplier.Total)
                     {
                         if (!isMelee())
-                        {
-                            Projectile p = new Projectile(_game, autoAttackProjId, x, y, 5, this, autoAttackTarget, null, autoAttackProjectileSpeed, 0);
+                        { 
+                            Projectile p = new Projectile(_game, autoAttackProjId, x, y, 5, this, autoAttackTarget, null, autoAttackProjectileSpeed, 0, EProjectileTargetType.TargetFallow);
                             _game.GetMap().AddObject(p);
                             _game.PacketNotifier.notifyShowProjectile(p);
                         }

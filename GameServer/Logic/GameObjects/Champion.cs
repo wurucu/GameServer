@@ -306,6 +306,8 @@ namespace LeagueSandbox.GameServer.Logic.GameObjects
                     GetStats().CurrentHealth = GetStats().HealthPoints.Total;
                     GetStats().CurrentMana = GetStats().HealthPoints.Total;
                     deathFlag = false;
+                    if (_plugin.Loaded)
+                        _plugin.getContent<IUnit>().onSpawn();
                 }
             }
 

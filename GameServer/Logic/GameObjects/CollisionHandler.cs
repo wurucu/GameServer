@@ -35,8 +35,8 @@ namespace LeagueSandbox.GameServer.Logic.GameObjects
             for (int i = 0; i < managedDivisions.Length; i++)
                 managedDivisions[i] = new CollisionDivision();
 
-            width = chart.getAIMesh().getWidth();
-            height = chart.getAIMesh().getHeight();
+            width = chart.GetWidth();
+            height = chart.GetHeight();
 
             // Get the square root of the division count. This is why it requires to be squared. (It's a map of 3x3 by default)
             //CORE_INFO("CollisionHandler has %d divisions.", divisionsOverWidth*divisionsOverWidth);

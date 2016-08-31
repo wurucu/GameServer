@@ -366,21 +366,19 @@ namespace LeagueSandbox.GameServer.Logic.GameObjects
             }
             return effects[effectNo][level];
         }
-
-        public void addProjectile(string nameMissile, float toX, float toY)
+         
+        public Projectile newProjectile(string nameMissile, float toX, float toY, EProjectileTargetType targetType)
         {
-            Projectile p = new Projectile(owner.GetGame(), owner.GetGame().GetNewNetID(), owner.getX(), owner.getY(), (int)lineWidth, owner, new Target(toX, toY), this, projectileSpeed, (int)RAFManager.getInstance().getHash(nameMissile), projectileFlags != 0 ? projectileFlags : flags);
-            owner.GetGame().GetMap().AddObject(p);
-            owner.GetGame().PacketNotifier.notifyProjectileSpawn(p);
+            Projectile p = new Projectile(owner.GetGame(), owner.GetGame().GetNewNetID(), owner.getX(), owner.getY(), (int)lineWidth, owner, new Target(toX, toY), this, projectileSpeed, (int)RAFManager.getInstance().getHash(nameMissile), targetType , projectileFlags != 0 ? projectileFlags : flags);
+            return p;
         }
-
-        public void addProjectileTarget(string nameMissile, Target target)
+         
+        public Projectile newProjectileTarget(string nameMissile, Target target, EProjectileTargetType targetType)
         {
-            Projectile p = new Projectile(owner.GetGame(), owner.GetGame().GetNewNetID(), owner.getX(), owner.getY(), (int)lineWidth, owner, target, this, projectileSpeed, (int)RAFManager.getInstance().getHash(nameMissile), projectileFlags != 0 ? projectileFlags : flags);
-            owner.GetGame().GetMap().AddObject(p);
-            owner.GetGame().PacketNotifier.notifyProjectileSpawn(p);
+            Projectile p = new Projectile(owner.GetGame(), owner.GetGame().GetNewNetID(), owner.getX(), owner.getY(), (int)lineWidth, owner, target, this, projectileSpeed, (int)RAFManager.getInstance().getHash(nameMissile), targetType, projectileFlags != 0 ? projectileFlags : flags);
+            return p;
         }
-
+          
         public void spellAnimation(string animName, Unit target)
         {
             owner.GetGame().PacketNotifier.notifySpellAnimation(target, animName);

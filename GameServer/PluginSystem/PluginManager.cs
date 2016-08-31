@@ -43,8 +43,7 @@ namespace LeagueSandbox.GameServer.PluginSystem
                     PluginFileWatch.Path = fi.Directory.FullName;
                     PluginFileWatch.Filter = fi.Name;
                     PluginFileWatch.NotifyFilter = NotifyFilters.LastWrite;
-                    PluginFileWatch.Changed += Watch_Changed;
-                    PluginFileWatch.InternalBufferSize = 16384;
+                    PluginFileWatch.Changed += Watch_Changed; 
                     PluginFileWatch.EnableRaisingEvents = true;
                     Logger.LogFullColor($"PLUGIN : Watch Mode ON !", "INFO", ConsoleColor.Cyan);
                 }

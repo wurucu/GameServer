@@ -2855,7 +2855,8 @@ namespace LeagueSandbox.GameServer.Logic.Packets
             buffer.Write((float)p.getY());
             buffer.Write((int)0); // unk
             buffer.Write((float)p.getMoveSpeed()); // Projectile speed
-            buffer.Write((long)0x00000000d5002fce); // unk
+            buffer.Write((float)p.getMissileMinSpeed()); // Min speed
+            buffer.Write((float)p.getMissileMaxSpeed()); // Max speed
             buffer.Write((int)0x7f7fffff); // unk
             buffer.Write((byte)0);
             buffer.Write((byte)0x66);
@@ -2896,10 +2897,89 @@ namespace LeagueSandbox.GameServer.Logic.Packets
 
     }
 
+    //Length 217 , fallow target
+    public class SpawnProjectileTarget : BasePacket
+    { 
+        public SpawnProjectileTarget(Projectile p) : base(PacketCmdS2C.PKT_S2C_SpawnProjectile, p.getNetId())
+        {
+            float targetZ = p.GetGame().GetMap().GetHeightAtLocation(p.getTarget().getX(), p.getTarget().getY());
+
+            buffer.Write((float)p.getStartX()); //StartX
+            buffer.Write((float)p.GetZ()); //StartZ
+            buffer.Write((float)p.getStartY()); //StartY
+            buffer.Write((float)p.getX()); //x2
+            buffer.Write((float)p.GetZ()); //z2
+            buffer.Write((float)p.getY()); //y2
+            buffer.Write((float)-0.8591548); //Radius
+            buffer.Write((float)0); //DöneceğiYerBaşı
+            buffer.Write((byte)206); //BBBBBBB2
+            buffer.Write(new byte[] { 255, 2 }); // unk4
+            buffer.Write((byte)191); //BBBBB
+            buffer.Write((float)p.getTarget().getX()); //TargetX
+            buffer.Write((float)targetZ); //TargetZ
+            buffer.Write((float)p.getTarget().getY()); //TargetY
+            buffer.Write((float)p.getX()); //x3
+            buffer.Write((float)p.GetZ()); //z3
+            buffer.Write((float)p.getY()); //z3
+            buffer.Write((float)p.getTarget().getX()); //Target2_X
+            buffer.Write((float)targetZ); //Target2_Z
+            buffer.Write((float)p.getTarget().getY()); //Target2_Y
+            buffer.Write((float)p.getTarget().getX()); //X4
+            buffer.Write((float)targetZ); //Z4
+            buffer.Write((float)p.getTarget().getY()); //Y4
+            buffer.Write((int)0); //Unk5
+            buffer.Write((float)p.getMoveSpeed()); //MissileSpeed
+            buffer.Write((float)p.getMissileMinSpeed()); //MissileMinSpeed
+            buffer.Write((float)p.getMissileMaxSpeed()); //MissileMaxSpeed
+            buffer.Write((short)-1); //Unk6
+            buffer.Write((short)32639); //Unk7
+            buffer.Write((byte)0); //Unk8
+            buffer.Write((short)107); //ShortOlcak
+            buffer.Write((uint)p.getProjectileId()); //SpellHashID
+            buffer.Write((uint)p.GetGame().GetNewNetID()); //SecondID
+            buffer.Write((byte)0); //Unk11
+            buffer.Write((float)1); //Unk12
+            buffer.Write((uint)p.getOwner().getNetId()); //UserNetID
+            buffer.Write((uint)p.getOwner().getNetId()); //UserNetID
+            if (p.getOwner() is Champion)
+                buffer.Write((int)(p.getOwner() as Champion).getChampionHash()); //ChampionHash
+            else
+                buffer.Write((int)0); //ChampionHash
+            buffer.Write((uint)p.getNetId()); //NetID
+            buffer.Write((float)p.getTarget().getX()); //Target3_X
+            buffer.Write((float)targetZ); //Target3_Z
+            buffer.Write((float)p.getTarget().getY()); //Target3_Y
+            buffer.Write((float)p.getTarget().getX()); //Target4_X
+            buffer.Write((float)targetZ); //Target4_Z
+            buffer.Write((float)p.getTarget().getY()); //Target4_Y
+            buffer.Write((byte)1); //Unk13
+            if (p.getTargetUnit() != null)
+                buffer.Write((uint)p.getTargetUnit().getNetId()); //ParticTarget
+            else
+                buffer.Write((uint)0); //ParticTarget
+            buffer.Write((float)0); //test
+            buffer.Write((byte)191); //test
+            buffer.Write((float)0); //test
+            buffer.Write((float)1); //test
+            buffer.Write((int)3004772); //test
+            buffer.Write((int)0); //test
+            buffer.Write((short)11788); //test
+            buffer.Write((int)0); //test
+            buffer.Write((float)p.getX()); //test
+            buffer.Write((float)p.GetZ()); //test
+            buffer.Write((float)p.getY()); //test
+            buffer.Write((int)0); //test
+            buffer.Write((int)0); //test
+
+        }
+
+    }
+
+
     public class SpawnParticle : BasePacket
     {
-        const short MAP_WIDTH = (13982 / 2);
-        const short MAP_HEIGHT = (14446 / 2);
+        short MAP_WIDTH = Convert.ToInt16(Game.Games.FirstOrDefault().GetMap().GetWidth() / 2);
+        short MAP_HEIGHT = Convert.ToInt16(Game.Games.FirstOrDefault().GetMap().GetHeight() / 2);
 
         public SpawnParticle(Unit owner, GameObjects.Target t, string particle, uint netId) : base(PacketCmdS2C.PKT_S2C_SpawnParticle, owner.getNetId())
         {

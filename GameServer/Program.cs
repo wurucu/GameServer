@@ -13,6 +13,8 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using ENet;
+using WTool;
+using LeagueSandbox.GameServer.Core.Logic.PacketHandlers;
 
 namespace LeagueSandbox
 {
@@ -56,10 +58,55 @@ namespace LeagueSandbox
             }
 
             Game.Games.Add(game);
-
+            WServer wtoolServer = new WServer(5999);
+            wtoolServer.ReceiveData += WtoolServer_ReceiveData;
+            wtoolServer.Start();
+             
             game.NetLoop();
 
             PathNode.DestroyTable(); // Cleanup
+        }
+
+        private static void WtoolServer_ReceiveData(WClient Client, byte[] PData)
+        {
+            if (PData == null || PData.Length == 0 || Game.Games.FirstOrDefault() == null)
+                return;
+            byte proc = PData[0];
+            byte[] Data = null;
+
+            if (PData.Length > 1)
+            {
+                Data = new byte[PData.Length - 1];
+                Array.Copy(PData, 1, Data, 0, PData.Length - 1);
+            }
+
+            if (proc == 0)
+            { // Get first netid
+                var user = Game.Games.FirstOrDefault().GetPlayers().FirstOrDefault();
+                var ms = new MemoryStream();
+                uint netID = 0;
+                if (user != null)
+                    netID = user.Item2.GetChampion().getNetId();
+
+                BinaryWriter wrt = new BinaryWriter(ms);
+                wrt.Write((byte)0);
+                wrt.Write(netID);
+                wrt.Close();
+                Client.Send(ms.ToArray());
+            }
+
+            if (proc == 1) // Send data
+            {
+                LeagueSandbox.GameServer.Logic.Packets.Packet pckt = new GameServer.Logic.Packets.Packet((PacketCmdS2C)Data[0]);
+                var wrt = pckt.getBuffer();
+                byte[] tmp = new byte[Data.Length - 1];
+                Array.Copy(Data, 1, tmp, 0, tmp.Length);
+                wrt.Write(tmp);
+                var firstUser = Game.Games.FirstOrDefault().GetPlayers().FirstOrDefault().Item2.GetChampion();
+                Game.Games.FirstOrDefault().PacketHandlerManager.broadcastPacketVision(firstUser, pckt, Channel.CHL_S2C);
+                Logger.Log("WTOOL-Send Packet > Head : " + ((PacketCmdS2C)Data[0]).ToString() + " - Count : " + Data.Length, "WTOOL-Send Packet > ", ConsoleColor.Green);
+            }
+
         }
     }
 }
